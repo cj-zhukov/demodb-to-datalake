@@ -1,0 +1,8 @@
+{
+    "server": "foo",
+    "user": "bar",
+    "database": "demo",
+    "port": "5432",
+    "password": "baz",
+    "max_connections": 10
+}
