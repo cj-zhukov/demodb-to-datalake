@@ -1,4 +1,4 @@
-use crate::{Result, MAX_ROWS, TableWorker, TICKETS_TABLE_NAME};
+use crate::{Result, MAX_ROWS, TableWorker, AIRCRAFTS_DATA_TABLE_NAME};
 
 use std::sync::Arc;
 
@@ -9,63 +9,58 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::arrow::array::{RecordBatch, StringArray};
+use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
 
 #[derive(Debug, Default, FromRow)]
-pub struct Tickets {
-    pub book_ref: String,
-    pub passenger_id: Option<String>,
-    pub passenger_name: Option<String>,
-    pub contact_data: Option<Json<ContactData>>,
+pub struct AircraftData {
+    pub aircraft_code: String,
+    pub model: Option<Json<Model>>,
+    pub range: Option<i32>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ContactData {
-    pub email: Option<String>,
-    pub phone: Option<String>,
+pub struct Model {
+    pub en: Option<String>,
+    pub ru: Option<String>,
 }
 
-impl Tickets {
+impl AircraftData {
     pub fn new() -> Self {
-        Tickets::default()
+        AircraftData::default()
     }
 
     pub fn table_name() -> String {
-        TICKETS_TABLE_NAME.to_string()
+        AIRCRAFTS_DATA_TABLE_NAME.to_string()
     }
 }
 
-impl Tickets {
+impl AircraftData {
     pub fn schema() -> Schema {
         Schema::new(vec![
-            Field::new("book_ref", DataType::Utf8, false),
-            Field::new("passenger_id", DataType::Utf8, true),
-            Field::new("passenger_name", DataType::Utf8, true),
-            Field::new("contact_data", DataType::Utf8, true), 
+            Field::new("aircraft_code", DataType::Utf8, false),
+            Field::new("model", DataType::Utf8, true),
+            Field::new("range", DataType::Int32, true),
         ])
     }
 
     pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
-        let mut book_refs = Vec::new();
-        let mut passenger_ids = Vec::new();
-        let mut passenger_names= Vec::new();
-        let mut contact_datas: Vec<Option<String>> = Vec::new();
+        let mut aircraft_codes = Vec::new();
+        let mut models: Vec<Option<String>> = Vec::new();
+        let mut ranges= Vec::new();
 
         for record in &records {
-            book_refs.push(record.book_ref.clone());
-            passenger_ids.push(record.passenger_id.clone());
-            passenger_names.push(record.passenger_name.clone());
-            contact_datas.push(None); // ? json
+            aircraft_codes.push(record.aircraft_code.clone());
+            models.push(None);
+            ranges.push(record.range);
         }
 
         let schema = Self::schema();
         let batch = RecordBatch::try_new(
             schema.into(),
             vec![
-                Arc::new(StringArray::from(book_refs)),
-                Arc::new(StringArray::from(passenger_ids)), 
-                Arc::new(StringArray::from(passenger_names)),
-                Arc::new(StringArray::from(contact_datas)),
+                Arc::new(StringArray::from(aircraft_codes)), 
+                Arc::new(StringArray::from(models)),
+                Arc::new(Int32Array::from(ranges)),
             ],
         ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
     
@@ -77,7 +72,7 @@ impl Tickets {
 }
 
 #[async_trait]
-impl TableWorker for Tickets {
+impl TableWorker for AircraftData {
     async fn query_table(&self, pool: &PgPool) -> Result<()> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
@@ -94,12 +89,11 @@ impl TableWorker for Tickets {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("book_ref: {} passenger_id: {} passenger_name: {} contact_data: {}", 
-                row.get::<String, _>("book_ref"), 
-                row.get::<String, _>("passenger_id"), 
-                row.get::<String, _>("passenger_name"),
-                row.get::<Value, _>("contact_data"))
-            )
+            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
+                row.get::<String, _>("aircraft_code"), 
+                row.get::<Value, _>("model"), 
+                row.get::<String, _>("range"),
+            ))
             .collect();
     
         Ok(rows)

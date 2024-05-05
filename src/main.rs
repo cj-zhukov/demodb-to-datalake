@@ -6,7 +6,7 @@ async fn main() -> Result<()> {
     println!("{}", config);
     let pool = config.connect().await?;
 
-    let tables = ["tickets", "ticket_flights", "foo"];
+    let tables = ["aircrafts_data", "airports_data", "boarding_passes", "bookings", "flights", "seats", "tickets", "ticket_flights"];
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {

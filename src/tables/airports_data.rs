@@ -1,4 +1,4 @@
-use crate::{Result, MAX_ROWS, TableWorker, TICKETS_TABLE_NAME};
+use crate::{Result, MAX_ROWS, TableWorker, AIRPORTS_DATA_TABLE_NAME};
 
 use std::sync::Arc;
 
@@ -12,60 +12,77 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
 
 #[derive(Debug, Default, FromRow)]
-pub struct Tickets {
-    pub book_ref: String,
-    pub passenger_id: Option<String>,
-    pub passenger_name: Option<String>,
-    pub contact_data: Option<Json<ContactData>>,
+pub struct AirportsData {
+    pub airport_code: String,
+    pub airport_name: Option<Json<AirportName>>,
+    pub city: Option<Json<City>>,
+    // pub coordinates: Option<Point>,
+    pub timezone: Option<String>,
+}
+
+// #[derive(Debug, Serialize, Deserialize, FromRow)]
+// pub struct Point {
+//     pub x: Option<f64>,
+//     pub y: Option<f64>,
+// }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AirportName {
+    pub en: Option<String>,
+    pub ru: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ContactData {
-    pub email: Option<String>,
-    pub phone: Option<String>,
+pub struct City {
+    pub en: Option<String>,
+    pub ru: Option<String>,
 }
 
-impl Tickets {
+impl AirportsData {
     pub fn new() -> Self {
-        Tickets::default()
+        AirportsData::default()
     }
 
     pub fn table_name() -> String {
-        TICKETS_TABLE_NAME.to_string()
+        AIRPORTS_DATA_TABLE_NAME.to_string()
     }
 }
 
-impl Tickets {
+impl AirportsData {
     pub fn schema() -> Schema {
         Schema::new(vec![
-            Field::new("book_ref", DataType::Utf8, false),
-            Field::new("passenger_id", DataType::Utf8, true),
-            Field::new("passenger_name", DataType::Utf8, true),
-            Field::new("contact_data", DataType::Utf8, true), 
+            Field::new("airport_code", DataType::Utf8, false),
+            Field::new("airport_name", DataType::Utf8, true),
+            Field::new("city", DataType::Utf8, true),
+            // Field::new("coordinates", DataType::Utf8, true),
+            Field::new("timezone", DataType::Utf8, true),
         ])
     }
 
     pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
-        let mut book_refs = Vec::new();
-        let mut passenger_ids = Vec::new();
-        let mut passenger_names= Vec::new();
-        let mut contact_datas: Vec<Option<String>> = Vec::new();
+        let mut airport_codes = Vec::new();
+        let mut airport_names: Vec<Option<String>> = Vec::new();
+        let mut cities: Vec<Option<String>> = Vec::new();
+        // let mut coordinates_all: Vec<Option<String>> = Vec::new();
+        let mut timezones = Vec::new();
 
         for record in &records {
-            book_refs.push(record.book_ref.clone());
-            passenger_ids.push(record.passenger_id.clone());
-            passenger_names.push(record.passenger_name.clone());
-            contact_datas.push(None); // ? json
+            airport_codes.push(record.airport_code.clone());
+            airport_names.push(None);
+            cities.push(None);
+            // coordinates_all.push(None);
+            timezones.push(record.timezone.clone());
         }
 
         let schema = Self::schema();
         let batch = RecordBatch::try_new(
             schema.into(),
             vec![
-                Arc::new(StringArray::from(book_refs)),
-                Arc::new(StringArray::from(passenger_ids)), 
-                Arc::new(StringArray::from(passenger_names)),
-                Arc::new(StringArray::from(contact_datas)),
+                Arc::new(StringArray::from(airport_codes)), 
+                Arc::new(StringArray::from(airport_names)),
+                Arc::new(StringArray::from(cities)),
+                // Arc::new(StringArray::from(coordinates_all)),
+                Arc::new(StringArray::from(timezones)),
             ],
         ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
     
@@ -77,7 +94,7 @@ impl Tickets {
 }
 
 #[async_trait]
-impl TableWorker for Tickets {
+impl TableWorker for AirportsData {
     async fn query_table(&self, pool: &PgPool) -> Result<()> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
@@ -94,12 +111,11 @@ impl TableWorker for Tickets {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("book_ref: {} passenger_id: {} passenger_name: {} contact_data: {}", 
-                row.get::<String, _>("book_ref"), 
-                row.get::<String, _>("passenger_id"), 
-                row.get::<String, _>("passenger_name"),
-                row.get::<Value, _>("contact_data"))
-            )
+            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
+                row.get::<String, _>("aircraft_code"), 
+                row.get::<Value, _>("model"), 
+                row.get::<String, _>("range"),
+            ))
             .collect();
     
         Ok(rows)

@@ -11,12 +11,11 @@ use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
 
 #[derive(Debug, Default, FromRow)]
 pub struct TicketFlights {
-    pub ticket_no: Option<String>,
+    pub ticket_no: String,
     pub flight_id: Option<i32>,
     pub fare_conditions: Option<String>,
     pub amount: Option<Decimal>,
 }
-
 
 impl TicketFlights {
     pub fn new() -> Self {
