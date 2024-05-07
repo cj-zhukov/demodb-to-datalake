@@ -45,14 +45,14 @@ impl AircraftData {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
+    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut aircraft_codes = Vec::new();
         let mut models = Vec::new();
         let mut ranges= Vec::new();
 
         for record in records {
             aircraft_codes.push(record.aircraft_code.clone());
-            let model = match record.model {
+            let model = match &mut record.model {
                 Some(v) => {
                     Some(serde_json::to_string(&v)?)
                 }
@@ -110,9 +110,9 @@ impl TableWorker for AircraftData {
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
+        let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, records)?;
+        let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
     }

@@ -54,22 +54,34 @@ impl AirportsData {
             Field::new("airport_code", DataType::Utf8, false),
             Field::new("airport_name", DataType::Utf8, true),
             Field::new("city", DataType::Utf8, true),
-            // Field::new("coordinates", DataType::Utf8, true),
+            // Field::new("coordinates", DataType::Utf8, true), // point data type?
             Field::new("timezone", DataType::Utf8, true),
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
+    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut airport_codes = Vec::new();
-        let mut airport_names: Vec<Option<String>> = Vec::new();
+        let mut airport_names = Vec::new();
         let mut cities: Vec<Option<String>> = Vec::new();
         // let mut coordinates_all: Vec<Option<String>> = Vec::new();
         let mut timezones = Vec::new();
 
-        for record in &records {
+        for record in records {
             airport_codes.push(record.airport_code.clone());
-            airport_names.push(None);
-            cities.push(None);
+            let airport_name = match &mut record.airport_name {
+                Some(val) => {
+                    Some(serde_json::to_string(&val)?)
+                },
+                None => None
+            };
+            airport_names.push(airport_name);
+            let city = match &mut record.city {
+                Some(val) => {
+                    Some(serde_json::to_string(&val)?)
+                },
+                None => None
+            };
+            cities.push(city);
             // coordinates_all.push(None);
             timezones.push(record.timezone.clone());
         }
@@ -124,9 +136,9 @@ impl TableWorker for AirportsData {
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
+        let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, records)?;
+        let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
     }
