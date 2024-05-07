@@ -41,7 +41,7 @@ impl Config {
 
 impl std::fmt::Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "config: server: {} user: {} database: {} port: {} password: ****\n", 
+        writeln!(f, "config: server: {} user: {} database: {} port: {} password: ****", 
         self.server, self.user, self.database, self.port)
     }
  }

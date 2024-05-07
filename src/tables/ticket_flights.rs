@@ -45,7 +45,7 @@ impl TicketFlights {
 
         for record in &records {
             ticket_nos.push(record.ticket_no.clone());
-            flight_ids.push(record.flight_id.clone());
+            flight_ids.push(record.flight_id);
             fare_conditionses.push(record.fare_conditions.clone());
             amounts.push(None); 
         }

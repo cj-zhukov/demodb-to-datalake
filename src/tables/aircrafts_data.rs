@@ -1,10 +1,12 @@
 use crate::{Result, MAX_ROWS, TableWorker, AIRCRAFTS_DATA_TABLE_NAME};
 
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::Json;
+// use sqlx::types::JsonValue;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use datafusion::prelude::*;
@@ -45,12 +47,18 @@ impl AircraftData {
 
     pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
         let mut aircraft_codes = Vec::new();
-        let mut models: Vec<Option<String>> = Vec::new();
+        let mut models = Vec::new();
         let mut ranges= Vec::new();
 
-        for record in &records {
+        for record in records {
             aircraft_codes.push(record.aircraft_code.clone());
-            models.push(None);
+            let model = match record.model {
+                Some(v) => {
+                    Some(serde_json::to_string(&v)?)
+                }
+                None => None
+            };
+            models.push(model);
             ranges.push(record.range);
         }
 
