@@ -50,7 +50,7 @@ impl Flights {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
+    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut flight_ids = Vec::new();
         let mut flight_nos = Vec::new();
         let mut scheduled_departures: Vec<Option<String>> = Vec::new();
@@ -62,7 +62,7 @@ impl Flights {
         let mut actual_departuress: Vec<Option<String>> = Vec::new();
         let mut actual_arrivals: Vec<Option<String>> = Vec::new();
 
-        for record in &records {
+        for record in records {
             flight_ids.push(record.flight_id);
             flight_nos.push(record.flight_no.clone());
             scheduled_departures.push(None);
@@ -130,9 +130,9 @@ impl TableWorker for Flights {
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
+        let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, records)?;
+        let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
     }
