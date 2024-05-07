@@ -45,17 +45,23 @@ impl Tickets {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: Vec<Self>) -> Result<DataFrame> {
+    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut book_refs = Vec::new();
         let mut passenger_ids = Vec::new();
         let mut passenger_names= Vec::new();
-        let mut contact_datas: Vec<Option<String>> = Vec::new();
+        let mut contact_datas = Vec::new();
 
-        for record in &records {
+        for record in records {
             book_refs.push(record.book_ref.clone());
             passenger_ids.push(record.passenger_id.clone());
             passenger_names.push(record.passenger_name.clone());
-            contact_datas.push(None); // ? json
+            let contact_data = match &mut record.contact_data {
+                Some(val) => {
+                    Some(serde_json::to_string(&val)?)
+                },
+                None => None
+            };
+            contact_datas.push(contact_data);
         }
 
         let schema = Self::schema();
@@ -108,9 +114,9 @@ impl TableWorker for Tickets {
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
+        let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, records)?;
+        let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
     }
