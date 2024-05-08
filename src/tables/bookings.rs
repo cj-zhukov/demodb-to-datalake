@@ -44,7 +44,11 @@ impl Bookings {
 
         for record in records {
             book_refs.push(record.book_ref.clone());
-            book_dates.push(None);
+            let book_date = match &mut record.book_date {
+                Some(val) => Some(val.to_rfc3339()),
+                None => None
+            };
+            book_dates.push(book_date);
             let total_amount = match &mut record.total_amount {
                 Some(val) => Some(val.to_string()),
                 None => None

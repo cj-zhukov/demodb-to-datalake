@@ -6,7 +6,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::Json;
-// use sqlx::types::JsonValue;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use datafusion::prelude::*;
