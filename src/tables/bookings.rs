@@ -40,12 +40,16 @@ impl Bookings {
     pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut book_refs = Vec::new();
         let mut book_dates: Vec<Option<String>> = Vec::new();
-        let mut total_amounts: Vec<Option<String>> = Vec::new();
+        let mut total_amounts = Vec::new();
 
         for record in records {
             book_refs.push(record.book_ref.clone());
             book_dates.push(None);
-            total_amounts.push(None);
+            let total_amount = match &mut record.total_amount {
+                Some(val) => Some(val.to_string()),
+                None => None
+            };
+            total_amounts.push(total_amount);
         }
 
         let schema = Self::schema();

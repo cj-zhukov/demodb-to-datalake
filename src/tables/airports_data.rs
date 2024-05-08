@@ -54,7 +54,8 @@ impl AirportsData {
             Field::new("airport_code", DataType::Utf8, false),
             Field::new("airport_name", DataType::Utf8, true),
             Field::new("city", DataType::Utf8, true),
-            // Field::new("coordinates", DataType::Utf8, true), // point data type?
+            // Field::new("coordinates", DataType::Struct(vec![DataType::Float64, DataType::Float64]), true), // point data type
+            // Field::new("coordinates", DataType::Utf8, true),
             Field::new("timezone", DataType::Utf8, true),
         ])
     }
@@ -62,8 +63,8 @@ impl AirportsData {
     pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut airport_codes = Vec::new();
         let mut airport_names = Vec::new();
-        let mut cities: Vec<Option<String>> = Vec::new();
-        // let mut coordinates_all: Vec<Option<String>> = Vec::new();
+        let mut cities= Vec::new();
+        // let mut coordinates_all = Vec::new();
         let mut timezones = Vec::new();
 
         for record in records {
@@ -83,6 +84,24 @@ impl AirportsData {
             };
             cities.push(city);
             // coordinates_all.push(None);
+            // match &mut record.coordinates {
+            //     Some(val) => {
+            //         xs.push(Some(val.x));
+            //         ys.push(Some(val.y));
+            //     },
+            //     None => {
+            //         xs.push(None);
+            //         ys.push(None);   
+            //     }
+            // };
+            // let coordinates = match &record.coordinates {
+            //     Some(val) => {
+            //         Some(format!("x: {:?}, y: {:?}", val.x, val.y))
+            //     },
+            //     None => None
+            // };
+            // coordinates_all.push(coordinates);
+
             timezones.push(record.timezone.clone());
         }
 
