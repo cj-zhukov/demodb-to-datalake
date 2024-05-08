@@ -53,26 +53,30 @@ impl Flights {
     pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame> {
         let mut flight_ids = Vec::new();
         let mut flight_nos = Vec::new();
-        let mut scheduled_departures: Vec<Option<String>> = Vec::new();
-        let mut scheduled_arrivals: Vec<Option<String>> = Vec::new();
+        let mut scheduled_departures = Vec::new();
+        let mut scheduled_arrivals = Vec::new();
         let mut departure_airports = Vec::new();
         let mut arrival_airports = Vec::new();
         let mut statuses = Vec::new();
         let mut aircraft_codes = Vec::new();
-        let mut actual_departuress: Vec<Option<String>> = Vec::new();
-        let mut actual_arrivals: Vec<Option<String>> = Vec::new();
+        let mut actual_departures = Vec::new();
+        let mut actual_arrivals = Vec::new();
 
         for record in records {
             flight_ids.push(record.flight_id);
             flight_nos.push(record.flight_no.clone());
-            scheduled_departures.push(None);
-            scheduled_arrivals.push(None);
+            let scheduled_departure = record.scheduled_departure.as_mut().map(|val| val.to_rfc3339());
+            scheduled_departures.push(scheduled_departure);
+            let scheduled_arrival = record.scheduled_arrival.as_mut().map(|val| val.to_rfc3339());
+            scheduled_arrivals.push(scheduled_arrival);
             departure_airports.push(record.departure_airport.clone());
             arrival_airports.push(record.arrival_airport.clone());
             statuses.push(record.status.clone());
             aircraft_codes.push(record.aircraft_code.clone());
-            actual_departuress.push(None);
-            actual_arrivals.push(None);
+            let actual_departure = record.actual_departure.as_mut().map(|val| val.to_rfc3339());
+            actual_departures.push(actual_departure);
+            let actual_arrival = record.actual_arrival.as_mut().map(|val| val.to_rfc3339());
+            actual_arrivals.push(actual_arrival);
         }
 
         let schema = Self::schema();
@@ -87,7 +91,7 @@ impl Flights {
                 Arc::new(StringArray::from(arrival_airports)),
                 Arc::new(StringArray::from(statuses)),
                 Arc::new(StringArray::from(aircraft_codes)),
-                Arc::new(StringArray::from(actual_departuress)),
+                Arc::new(StringArray::from(actual_departures)),
                 Arc::new(StringArray::from(actual_arrivals)),
             ],
         ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
