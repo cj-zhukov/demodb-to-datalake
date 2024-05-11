@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use serde_json::Value;
+// use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
@@ -86,10 +86,11 @@ impl TableWorker for BoardingPasses {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+            .map(|row| format!("ticket_no: {}, flight_id: {}, boarding_no: {}, seat_no: {}", 
+                row.get::<String, _>("ticket_no"), 
+                row.get::<i32, _>("flight_id"), 
+                row.get::<i32, _>("boarding_no"),
+                row.get::<String, _>("seat_no"),
             ))
             .collect();
     

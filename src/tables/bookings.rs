@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::types::Decimal;
-use serde_json::Value;
+// use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
@@ -85,10 +85,11 @@ impl TableWorker for Bookings {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+            // .map(|row| format!("book_ref: {}, book_date: {}, total_amount: {}", 
+            .map(|row| format!("book_ref: {}, book_date: {}", 
+                row.get::<String, _>("book_ref"), 
+                row.get::<DateTime<Utc>, _>("book_date"), 
+                // row.get::<f32, _>("total_amount"), // numeric(10,2)?
             ))
             .collect();
     

@@ -87,7 +87,7 @@ impl TableWorker for TicketFlights {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("ticket_no: {} flight_id: {} fare_conditions: {} amount: {}", 
+            .map(|row| format!("ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}", 
                 row.get::<String, _>("ticket_no"), 
                 row.get::<i32, _>("flight_id"), 
                 row.get::<String, _>("fare_conditions"),

@@ -20,10 +20,40 @@ pub struct AirportsData {
     pub timezone: Option<String>,
 }
 
-// #[derive(Debug, Serialize, Deserialize, FromRow)]
+// #[derive(Debug)]
 // pub struct Point {
-//     pub x: Option<f64>,
-//     pub y: Option<f64>,
+//     pub x: f64,
+//     pub y: f64
+// }
+
+// impl FromRow<'_, PgRow> for AirportsData {
+//     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+//         let airport_code = row.try_get::<String, _>("airport_code")?;
+//         let airport_name: AirportName = row.try_column("airport_name")?;
+//         let city = row.try_get::<City, _>("city")?;
+//         let coordinates = row.try_get::<Point, _>("coordinates")?;
+//         let timezone = row.try_get::<String, _>("timezone")?;
+
+//         Ok(AirportsData { airport_code, airport_name, city, coordinates, timezone })
+//     }
+// }
+
+// impl<'r> sqlx::FromRow<'r, PgRow> for Point {
+//     fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
+//         let coordinates = row.try_get::<((f64, f64), _)>("coordinates")
+//             .map_err(|e| e.into())?;
+
+//         Ok(Point {
+//             x: coordinates.0,
+//             y: coordinates.1
+//         })
+//     }
+// }
+
+// impl sqlx::Type<sqlx::Postgres> for Point {
+//     fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+//         <(f64, f64) as sqlx::Type<sqlx::Postgres>>::type_info()
+//     }
 // }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,8 +84,8 @@ impl AirportsData {
             Field::new("airport_code", DataType::Utf8, false),
             Field::new("airport_name", DataType::Utf8, true),
             Field::new("city", DataType::Utf8, true),
-            // Field::new("coordinates", DataType::Struct(vec![DataType::Float64, DataType::Float64]), true), // point data type
             // Field::new("coordinates", DataType::Utf8, true),
+
             Field::new("timezone", DataType::Utf8, true),
         ])
     }
@@ -83,24 +113,6 @@ impl AirportsData {
                 None => None
             };
             cities.push(city);
-            // coordinates_all.push(None);
-            // match &mut record.coordinates {
-            //     Some(val) => {
-            //         xs.push(Some(val.x));
-            //         ys.push(Some(val.y));
-            //     },
-            //     None => {
-            //         xs.push(None);
-            //         ys.push(None);   
-            //     }
-            // };
-            // let coordinates = match &record.coordinates {
-            //     Some(val) => {
-            //         Some(format!("x: {:?}, y: {:?}", val.x, val.y))
-            //     },
-            //     None => None
-            // };
-            // coordinates_all.push(coordinates);
 
             timezones.push(record.timezone.clone());
         }
@@ -142,10 +154,11 @@ impl TableWorker for AirportsData {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, timezone: {}", 
+                row.get::<String, _>("airport_code"), 
+                row.get::<Value, _>("airport_name"), 
+                row.get::<Value, _>("city"),
+                row.get::<String, _>("timezone"),
             ))
             .collect();
     

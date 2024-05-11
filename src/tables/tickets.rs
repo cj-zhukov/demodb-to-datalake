@@ -100,11 +100,12 @@ impl TableWorker for Tickets {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("book_ref: {} passenger_id: {} passenger_name: {} contact_data: {}", 
+            .map(|row| format!("ticket_no: {}, book_ref: {}, passenger_id: {}, passenger_name: {}, contact_data: {}", 
+                row.get::<String, _>("ticket_no"), 
                 row.get::<String, _>("book_ref"), 
-                row.get::<String, _>("passenger_id"), 
+                row.get::<String, _>("passenger_id"),
                 row.get::<String, _>("passenger_name"),
-                row.get::<Value, _>("contact_data"))
+                row.get::<Value, _>("contact_data")),
             )
             .collect();
     

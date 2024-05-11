@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
@@ -81,10 +80,10 @@ impl TableWorker for Seats {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
+            .map(|row| format!("aircraft_code: {}, seat_no: {}, fare_conditions: {}", 
                 row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+                row.get::<String, _>("seat_no"), 
+                row.get::<String, _>("fare_conditions"),
             ))
             .collect();
     

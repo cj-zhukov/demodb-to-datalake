@@ -5,7 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
-use serde_json::Value;
+// use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
@@ -121,10 +121,18 @@ impl TableWorker for Flights {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+            .map(|row| format!("flight_id: {}, flight_no: {}, scheduled_departure: {}, scheduled_arrival: {}, departure_airport: {} \
+            arrival_airport: {}, status: {}, aircraft_code: {}, actual_departure: {:?}, actual_arrival: {:?}", 
+                row.get::<i32, _>("flight_id"), 
+                row.get::<String, _>("flight_no"), 
+                row.get::<DateTime<Utc>, _>("scheduled_departure"),
+                row.get::<DateTime<Utc>, _>("scheduled_arrival"),
+                row.get::<String, _>("departure_airport"),
+                row.get::<String, _>("arrival_airport"),
+                row.get::<String, _>("status"),
+                row.get::<String, _>("aircraft_code"),
+                row.get::<Option<DateTime<Utc>>, _>("actual_departure"),
+                row.get::<Option<DateTime<Utc>>, _>("actual_arrival"),
             ))
             .collect();
     

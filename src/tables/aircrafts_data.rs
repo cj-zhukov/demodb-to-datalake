@@ -96,10 +96,10 @@ impl TableWorker for AircraftData {
     
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {} model: {} range: {}", 
+            .map(|row| format!("aircraft_code: {}, model: {}, range: {}", 
                 row.get::<String, _>("aircraft_code"), 
                 row.get::<Value, _>("model"), 
-                row.get::<String, _>("range"),
+                row.get::<i32, _>("range"),
             ))
             .collect();
     

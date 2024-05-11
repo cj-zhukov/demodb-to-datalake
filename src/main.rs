@@ -10,8 +10,10 @@ async fn main() -> Result<()> {
         let table = Table::new(table);
         if let Some(table) = table {
             let worker = table.to_worker();
-            let res = worker.query_table_to_df(&pool).await?;
-            res.show().await?;
+            // let res = worker.query_table_to_df(&pool).await?;
+            // res.show().await?;
+            let res = worker.query_table_to_string(&pool).await?;
+            println!("{:?}", res);
             println!();
         }
     }
