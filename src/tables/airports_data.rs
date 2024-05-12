@@ -20,21 +20,38 @@ pub struct AirportsData {
     pub timezone: Option<String>,
 }
 
-// #[derive(Debug)]
+// #[derive(Debug, Default, sqlx::Decode, sqlx::Encode)]
+// pub struct Point(String);
+// #[derive(Debug, Default, FromRow)]
 // pub struct Point {
 //     pub x: f64,
-//     pub y: f64
+//     pub y: f64,
+// }
+
+// impl sqlx::Type<sqlx::Postgres> for Point {
+//     fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+//         <(f64, f64) as sqlx::Type<sqlx::Postgres>>::type_info()
+//         // <String as sqlx::Type<sqlx::Postgres>>::type_info()
+//     }
 // }
 
 // impl FromRow<'_, PgRow> for AirportsData {
-//     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+//     fn from_row(row: &PgRow) -> std::result::Result<AirportsData, sqlx::Error> {
 //         let airport_code = row.try_get::<String, _>("airport_code")?;
-//         let airport_name: AirportName = row.try_column("airport_name")?;
-//         let city = row.try_get::<City, _>("city")?;
+//         let airport_name = row.try_get::<Json<AirportName>, _>("airport_name")?;
+//         let city = row.try_get::<Json<City>, _>("city")?;
 //         let coordinates = row.try_get::<Point, _>("coordinates")?;
+//         // let point = Point { x: coordinates.x, y: coordinates.y };
+//         // let coordinates = Point { x: 129.7709960937, y: 62.093299865722656 };
 //         let timezone = row.try_get::<String, _>("timezone")?;
 
-//         Ok(AirportsData { airport_code, airport_name, city, coordinates, timezone })
+//         Ok(AirportsData { 
+//             airport_code, 
+//             airport_name: Some(airport_name), 
+//             city: Some(city), 
+//             coordinates: Some(coordinates), 
+//             timezone: Some(timezone), 
+//         })
 //     }
 // }
 
@@ -85,7 +102,6 @@ impl AirportsData {
             Field::new("airport_name", DataType::Utf8, true),
             Field::new("city", DataType::Utf8, true),
             // Field::new("coordinates", DataType::Utf8, true),
-
             Field::new("timezone", DataType::Utf8, true),
         ])
     }
@@ -154,10 +170,12 @@ impl TableWorker for AirportsData {
     
         let rows: Vec<String> = data
             .iter()
+            // .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}", 
             .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, timezone: {}", 
                 row.get::<String, _>("airport_code"), 
                 row.get::<Value, _>("airport_name"), 
                 row.get::<Value, _>("city"),
+                // row.get::<Point, _>("coordinates"),
                 row.get::<String, _>("timezone"),
             ))
             .collect();

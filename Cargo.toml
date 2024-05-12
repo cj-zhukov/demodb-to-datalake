@@ -5,8 +5,11 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features= ["full"] }
-sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal"] }
-datafusion = "37"
+tokio-stream = "0.1"
+futures-util = "0.3"
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal", "chrono"] }
+datafusion = "38"
+parquet = "51"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
