@@ -1,6 +1,5 @@
-pub type Result<T> = core::result::Result<T, Error>;
-pub type Error = Box<dyn std::error::Error>;
-
+pub mod error;
+pub use error::Result;
 pub mod config;
 pub mod tables;
 use tables::{aircrafts_data, airports_data, boarding_passes, bookings, flights, seats, ticket_flights, tickets};
