@@ -5,7 +5,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
-// use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
@@ -94,10 +93,8 @@ impl Flights {
                 Arc::new(StringArray::from(actual_departures)),
                 Arc::new(StringArray::from(actual_arrivals)),
             ],
-        ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
-    
-        let df = ctx.read_batch(batch)
-            .map_err(|e| format!("failed creating dataframe for table: {} cause: {}", Self::table_name(), e))?;
+        )?;
+        let df = ctx.read_batch(batch)?;
 
         Ok(df)
     }

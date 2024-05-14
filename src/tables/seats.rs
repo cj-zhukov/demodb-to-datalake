@@ -53,10 +53,8 @@ impl Seats {
                 Arc::new(StringArray::from(seat_nos)),
                 Arc::new(StringArray::from(fare_conditionses)),
             ],
-        ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
-    
-        let df = ctx.read_batch(batch)
-            .map_err(|e| format!("failed creating dataframe for table: {} cause: {}", Self::table_name(), e))?;
+        )?;
+        let df = ctx.read_batch(batch)?;
 
         Ok(df)
     }

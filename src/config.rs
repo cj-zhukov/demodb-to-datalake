@@ -21,8 +21,8 @@ pub struct Config {
 
 impl Config {
     pub async fn new(file_path: &str) -> Result<Config>  {
-        let contents = fs::read_to_string(file_path).await.map_err(|e| format!("failed reading cause: {}", e))?;
-        let config: Config = serde_json::from_str(contents.as_str()).map_err(|e| format!("failed parsing config cause: {}", e))?;
+        let contents = fs::read_to_string(file_path).await?;
+        let config: Config = serde_json::from_str(contents.as_str())?;
 
         Ok(config)
     }

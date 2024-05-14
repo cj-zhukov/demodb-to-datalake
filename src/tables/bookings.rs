@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::types::Decimal;
-// use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
@@ -58,10 +57,8 @@ impl Bookings {
                 Arc::new(StringArray::from(book_dates)),
                 Arc::new(StringArray::from(total_amounts)),
             ],
-        ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
-    
-        let df = ctx.read_batch(batch)
-            .map_err(|e| format!("failed creating dataframe for table: {} cause: {}", Self::table_name(), e))?;
+        )?;
+        let df = ctx.read_batch(batch)?;
 
         Ok(df)
     }

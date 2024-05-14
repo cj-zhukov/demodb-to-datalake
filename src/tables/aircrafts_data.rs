@@ -69,10 +69,8 @@ impl AircraftData {
                 Arc::new(StringArray::from(models)),
                 Arc::new(Int32Array::from(ranges)),
             ],
-        ).map_err(|e| format!("failed creating batch for table: {} cause: {}", Self::table_name(), e))?;
-    
-        let df = ctx.read_batch(batch)
-            .map_err(|e| format!("failed creating dataframe for table: {} cause: {}", Self::table_name(), e))?;
+        )?;
+        let df = ctx.read_batch(batch)?;
 
         Ok(df)
     }

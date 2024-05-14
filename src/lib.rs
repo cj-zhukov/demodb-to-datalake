@@ -50,6 +50,19 @@ impl Table {
         }
     }
 
+    pub fn value(&self) -> &str {
+        match *self {
+            Table::AircraftDataTable => AIRCRAFTS_DATA_TABLE_NAME,
+            Table::AirportsDataTable => AIRPORTS_DATA_TABLE_NAME,
+            Table::BoardingPassesTable => BOARDING_PASSES_TABLE_NAME,
+            Table::BookingsTable => BOOKINGS_TABLE_NAME,
+            Table::FlightsTable => FLIGHTS_TABLE_NAME,
+            Table::SeatsTable => SEATS_TABLE_NAME,
+            Table::TicketsTable => TICKETS_TABLE_NAME,
+            Table::TicketFlightsTable => TICKET_FLIGHTS_TABLE_NAME,
+        }
+    }
+
     pub fn to_worker(&self) -> Box<dyn TableWorker> {
         match *self {
             Self::AircraftDataTable => Box::new(aircrafts_data::AircraftData::new()),
