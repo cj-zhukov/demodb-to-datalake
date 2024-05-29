@@ -3,6 +3,7 @@ use crate::{Result, MAX_ROWS, TableWorker, BOOKINGS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::types::Decimal;
@@ -15,6 +16,18 @@ pub struct Bookings {
     pub book_ref: String,
     pub book_date: Option<DateTime<Utc>>,
     pub total_amount: Option<Decimal>
+}
+
+impl Serialize for Bookings {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        let book_date = self.book_date.map(|val| val.to_rfc3339());
+
+        serde_json::json!({ "book_ref": self.book_ref, "book_date": book_date, "total_amount": self.total_amount})
+            .serialize(serializer)
+    }
 }
 
 impl Bookings {
@@ -101,5 +114,14 @@ impl TableWorker for Bookings {
         let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
+    }
+
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String> {
+        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        
+        Ok(res)
     }
 }

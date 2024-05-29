@@ -3,6 +3,7 @@ use crate::{Result, MAX_ROWS, TableWorker, FLIGHTS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::chrono::{DateTime, Utc};
 use datafusion::prelude::*;
@@ -21,6 +22,24 @@ pub struct Flights {
     pub aircraft_code: Option<String>,
     pub actual_departure: Option<DateTime<Utc>>,
     pub actual_arrival: Option<DateTime<Utc>>,
+}
+
+impl Serialize for Flights {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        let scheduled_departure = self.scheduled_departure.map(|val| val.to_rfc3339());
+        let scheduled_arrival = self.scheduled_arrival.map(|val| val.to_rfc3339());
+        let actual_departure = self.actual_departure.map(|val| val.to_rfc3339());
+        let actual_arrival = self.actual_arrival.map(|val| val.to_rfc3339());
+
+        serde_json::json!({
+            "flight_id": self.flight_id, "flight_no": self.flight_no, "scheduled_departure": scheduled_departure,
+            "scheduled_arrival": scheduled_arrival, "departure_airport": self.departure_airport, "arrival_airport": self.arrival_airport,
+            "status": self.status, "aircraft_code": self.aircraft_code, "actual_departure": actual_departure, "actual_arrival": actual_arrival,
+        }).serialize(serializer)
+    }
 }
 
 impl Flights {
@@ -144,5 +163,14 @@ impl TableWorker for Flights {
         let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
+    }
+
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String> {
+        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        
+        Ok(res)
     }
 }

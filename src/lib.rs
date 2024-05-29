@@ -50,7 +50,7 @@ impl Table {
         }
     }
 
-    pub fn value(&self) -> &str {
+    pub fn name(&self) -> &str {
         match *self {
             Table::AircraftDataTable => AIRCRAFTS_DATA_TABLE_NAME,
             Table::AirportsDataTable => AIRPORTS_DATA_TABLE_NAME,
@@ -81,6 +81,7 @@ impl Table {
 pub trait TableWorker {
     async fn query_table(&self, pool: &PgPool) -> Result<()>;
     async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>>;
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String>;
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame>;
 }
 
@@ -95,7 +96,7 @@ pub async fn write_df_to_file(df: DataFrame, file_path: &str) -> Result<()> {
     writer.close().await?;
 
     let mut file = File::create(file_path).await?;
-    file.write_all(&mut buf).await?;
+    file.write_all(&buf).await?;
 
     Ok(())
 }

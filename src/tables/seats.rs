@@ -3,12 +3,13 @@ use crate::{Result, MAX_ROWS, TableWorker, SEATS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
 
-#[derive(Debug, Default, FromRow)]
+#[derive(Debug, Default, FromRow, Serialize)]
 pub struct Seats {
     pub aircraft_code: String,
     pub seat_no: Option<String>,
@@ -70,7 +71,7 @@ impl TableWorker for Seats {
 
         Ok(())
     }
-
+    
     async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>> {
         let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
         let query = sqlx::query(&sql);
@@ -96,5 +97,14 @@ impl TableWorker for Seats {
         let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
+    }
+
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String> {
+        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        
+        Ok(res)
     }
 }

@@ -12,7 +12,7 @@ use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
 
-#[derive(Debug, Default, FromRow)]
+#[derive(Debug, Default, FromRow, Serialize)]
 pub struct AircraftData {
     pub aircraft_code: String,
     pub model: Option<Json<Model>>,
@@ -112,5 +112,14 @@ impl TableWorker for AircraftData {
         let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
+    }
+
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String> {
+        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        
+        Ok(res)
     }
 }

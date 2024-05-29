@@ -3,6 +3,13 @@ use crate::{Result, MAX_ROWS, TableWorker, AIRPORTS_DATA_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+// use geozero::wkb::{FromWkb, WkbDialect};
+// use sqlx::postgres::PgTypeInfo;
+// use sqlx::Postgres;
+// use geozero::wkb::GpkgWkb;
+// use geozero::wkt::WktWriter;
+// use sqlx::postgres::{PgTypeInfo, PgValueRef};
+// use sqlx::{Decode, Postgres};
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::Json;
 use serde::{Serialize, Deserialize};
@@ -10,66 +17,175 @@ use serde_json::Value;
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
+// use geo::Geometry;
+// use geo_types::Geometry;
+// use geo_types::Coord;
+// use geozero::{wkb, ToWkt, wkt, ToWkb};
+// use geo_types::Coord;
+// use geozero::wkb::{FromWkb, WkbDialect};
+// use geozero::{CoordDimensions, GeomProcessor, GeozeroGeometry};
 
-#[derive(Debug, Default, FromRow)]
+#[derive(Debug, Default, FromRow, Serialize)]
 pub struct AirportsData {
     pub airport_code: String,
     pub airport_name: Option<Json<AirportName>>,
     pub city: Option<Json<City>>,
-    // pub coordinates: Option<Point>,
+    // pub coordinates: Option<wkb::Decode<Geometry<f64>>>,
+    // pub coordinates: Option<wkb::Decode<Geometry>>,
+    // pub coordinates: Option<Point>, 
     pub timezone: Option<String>,
 }
 
-// #[derive(Debug, Default, sqlx::Decode, sqlx::Encode)]
-// pub struct Point(String);
-// #[derive(Debug, Default, FromRow)]
+// #[derive(Debug, Default)]
+// #[derive(Debug, sqlx::Decode, sqlx::Encode)]
+// pub struct Point(wkb::Decode<Geometry>);
 // pub struct Point {
 //     pub x: f64,
 //     pub y: f64,
 // }
 
+// impl Point {
+//     pub fn new() -> Self {
+//         Self { x: 0.0, y: 0.0 }
+//     }
+// }
+
+// impl sqlx::Type<Postgres> for Point {
+//     fn type_info() -> PgTypeInfo {
+//         PgTypeInfo::with_name("point")
+//     }
+// }
+
+// impl FromWkb for Point {
+//     fn from_wkb<R: std::io::Read>(rdr: &mut R, dialect: WkbDialect) -> geozero::error::Result<Self> {
+//         // use std::io::prelude::*;
+//         // use std::io::Cursor;
+//         // use geo_types::*;
+//         // use wkb::*;
+//         let mut pt = Point::new();
+//         geozero::wkb::process_wkb_type_geom(rdr, &mut pt, dialect)?;
+//         let mut bytes_cursor = std::io::Cursor::new(rdr);
+//         // let pt = bytes_cursor.read_wkb().unwrap();
+
+//         Ok(pt)
+//     }
+// }
+
+// impl GeomProcessor for Point {
+//     fn dimensions(&self) -> CoordDimensions {
+//         CoordDimensions::xyz()
+//     }
+
+//     fn coordinate(&mut self, x: f64, y: f64, z: Option<f64>, _m: Option<f64>, _t: Option<f64>, _tm: Option<u64>, _idx: usize) -> geozero::error::Result<()> {
+//         self.x = x;
+//         self.y = y;
+//         // self.z = z.unwrap_or(0.0);
+//         let _ = z;
+//         Ok(())
+//     }
+// }
+
+// impl GeozeroGeometry for Point {
+//     fn process_geom<P: GeomProcessor>(&self, processor: &mut P) -> std::result::Result<(), geozero::error::GeozeroError> {
+//         processor.point_begin(0)?;
+//         processor.coordinate(self.x, self.y, None, None, None, None, 0)?;
+//         processor.point_end(0)
+//     }
+//     fn dims(&self) -> CoordDimensions {
+//         CoordDimensions::xyz()
+//     }
+// }
+
+// impl From<String> for PointWrapper {     
+//     fn from(value: String) -> Self { 
+//         let mut data = value;       
+//         data.retain(|x| {!['(', ')'].contains(&x)});
+//         let c = data.split(",").collect::<Vec<_>>();
+//         let (x, y) = (c.get(0).unwrap().parse::<f64>().unwrap(), c.get(1).unwrap().parse::<f64>().unwrap());
+//         Self(x, y)
+//     } 
+// }  
+
 // impl sqlx::Type<sqlx::Postgres> for Point {
 //     fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
 //         <(f64, f64) as sqlx::Type<sqlx::Postgres>>::type_info()
+//         // <Point as sqlx::Type<sqlx::Postgres>>::type_info()
 //         // <String as sqlx::Type<sqlx::Postgres>>::type_info()
+//     }
+// }
+
+// impl<'de> Decode<'de, Postgres> for Point {
+//     fn decode(value: PgValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+//         let mut blob = <&[u8] as Decode<Postgres>>::decode(value)?;
+//         let mut data: Vec<u8> = Vec::new();
+//         let mut writer = WktWriter::new(&mut data);
+//         dbg!("here");
+//         wkb::process_ewkb_geom(&mut blob, &mut writer)
+//             .map_err(|e| sqlx::Error::Decode(e.to_string().into()))?;
+//         dbg!("here2");
+//         // let text = Text(std::str::from_utf8(&data).unwrap().to_string());
+//         let mut data = std::str::from_utf8(&data).unwrap().to_string();
+//         dbg!("here3");
+
+//         data.retain(|x| { !['(', ')'].contains(&x) });
+//         let c = data.split(",").collect::<Vec<_>>();
+//         let (x, y) = (c.get(0).unwrap().parse::<f64>().unwrap(), c.get(1).unwrap().parse::<f64>().unwrap());
+
+
+//         Ok(Self { x, y })
 //     }
 // }
 
 // impl FromRow<'_, PgRow> for AirportsData {
 //     fn from_row(row: &PgRow) -> std::result::Result<AirportsData, sqlx::Error> {
 //         let airport_code = row.try_get::<String, _>("airport_code")?;
+//         println!("airport_code: {}", airport_code);
 //         let airport_name = row.try_get::<Json<AirportName>, _>("airport_name")?;
+//         println!("airport_name: {:?}", airport_name);
 //         let city = row.try_get::<Json<City>, _>("city")?;
-//         let coordinates = row.try_get::<Point, _>("coordinates")?;
-//         // let point = Point { x: coordinates.x, y: coordinates.y };
-//         // let coordinates = Point { x: 129.7709960937, y: 62.093299865722656 };
+//         println!("city: {:?}", city);
+//         // let coordinates = row.try_get::<Point, _>("coordinates")?;
+//         // let coordinates = row.try_get::<String, _>("coordinates")?;
+//         // let c: String = row.try_get("coordinates")?;
+//         let p: Point = row.try_get("coordinates")?;
+//         println!("c: {:?}", p);
+//         // let coordinates: PointWrapper = PointWrapper::from(c);
 //         let timezone = row.try_get::<String, _>("timezone")?;
+//         println!("timezone: {}", timezone);
 
-//         Ok(AirportsData { 
-//             airport_code, 
-//             airport_name: Some(airport_name), 
-//             city: Some(city), 
-//             coordinates: Some(coordinates), 
-//             timezone: Some(timezone), 
-//         })
+//         // Ok(AirportsData { 
+//         //     airport_code, 
+//         //     airport_name: Some(airport_name), 
+//         //     city: Some(city), 
+//         //     , 
+//         //     timezone: Some(timezone), 
+//         // })
+//         Ok(AirportsData::default())
 //     }
 // }
 
+/*
+impl From<String> for UuidWrapper {     
+    fn from(value: String) -> Self {         
+        Self(Uuid::from_str(value.as_str()).unwrap())     
+    } 
+}  
+impl From<()> for UuidWrapper {     
+    fn from(_value: ()) -> Self {         
+        Self(Uuid::default())     
+    } 
+} 
+*/
+
 // impl<'r> sqlx::FromRow<'r, PgRow> for Point {
-//     fn from_row(row: &'r PgRow) -> Result<Self, sqlx::Error> {
-//         let coordinates = row.try_get::<((f64, f64), _)>("coordinates")
-//             .map_err(|e| e.into())?;
+//     fn from_row(row: &'r PgRow) -> std::result::Result<Self, sqlx::Error> {
+//         let coordinates = row.try_get::<(f64,f64), _>("coordinates").unwrap();
+//             // .map_err(|e| e.into())?;
 
 //         Ok(Point {
 //             x: coordinates.0,
 //             y: coordinates.1
 //         })
-//     }
-// }
-
-// impl sqlx::Type<sqlx::Postgres> for Point {
-//     fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
-//         <(f64, f64) as sqlx::Type<sqlx::Postgres>>::type_info()
 //     }
 // }
 
@@ -87,7 +203,14 @@ pub struct City {
 
 impl AirportsData {
     pub fn new() -> Self {
-        AirportsData::default()
+        Self::default()
+        // Self {
+        //     airport_code: String::new(),
+        //     airport_name: None,
+        //     city: None,
+        //     // coordinates: None,
+        //     timezone: None, 
+        // }
     }
 
     pub fn table_name() -> String {
@@ -189,5 +312,14 @@ impl TableWorker for AirportsData {
         let df = Self::to_df(ctx, &mut records)?;
 
         Ok(df)
+    }
+
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String> {
+        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        
+        Ok(res)
     }
 }

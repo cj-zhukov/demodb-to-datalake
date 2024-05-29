@@ -11,15 +11,25 @@ async fn main() -> Result<()> {
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {
-            let table_name = table.value();
+            let table_name = table.name();
             let worker = table.to_worker();
-            let res = worker.query_table_to_df(&pool)
+            // worker.query_table(&pool)
+            //     .await
+            //     .context(format!("failed when quering table: {}", table_name))?;
+
+            // let res = worker.query_table_to_df(&pool)
+            //     .await
+            //     .context(format!("failed when quering table: {}", table_name))?;
+            // res.show().await?;
+            
+            let res = worker.query_table_to_json(&pool)
                 .await
                 .context(format!("failed when quering table: {}", table_name))?;
-            res.show().await?;
+            println!("{}", res);
             println!();
         }
     }
+
 
     Ok(())
 }
