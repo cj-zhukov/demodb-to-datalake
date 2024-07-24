@@ -1,4 +1,4 @@
-use demodb_to_datalake::{config::Config, Table};
+use demodb_to_datalake::{config::Config, Table, utils::utils::write_df_to_file};
 
 use anyhow::{Context, Result};
 
@@ -17,19 +17,19 @@ async fn main() -> Result<()> {
             //     .await
             //     .context(format!("failed when quering table: {}", table_name))?;
 
-            // let res = worker.query_table_to_df(&pool)
-            //     .await
-            //     .context(format!("failed when quering table: {}", table_name))?;
-            // res.show().await?;
-            
-            let res = worker.query_table_to_json(&pool)
+            let res = worker.query_table_to_df(&pool)
                 .await
                 .context(format!("failed when quering table: {}", table_name))?;
-            println!("{}", res);
-            println!();
+            res.show().await?;
+            // write_df_to_file(res, "foo.parquet").await?;
+
+            // let res = worker.query_table_to_json(&pool)
+            //     .await
+            //     .context(format!("failed when quering table: {}", table_name))?;
+            // println!("{}", res);
+            // println!();
         }
     }
-
 
     Ok(())
 }
