@@ -1,19 +1,9 @@
-use crate::{tables, Result};
+use crate::{tables, AppError, utils::*};
 use tables::{aircrafts_data, airports_data, boarding_passes, bookings, flights, seats, ticket_flights, tickets};
 
 use async_trait::async_trait;
 use datafusion::prelude::*;
 use sqlx::PgPool;
-
-pub const MAX_ROWS: u32 = 10;
-pub const AIRCRAFTS_DATA_TABLE_NAME: &str = "aircrafts_data";
-pub const AIRPORTS_DATA_TABLE_NAME: &str = "airports_data";
-pub const BOARDING_PASSES_TABLE_NAME: &str = "boarding_passes";
-pub const BOOKINGS_TABLE_NAME: &str = "bookings";
-pub const FLIGHTS_TABLE_NAME: &str = "flights";
-pub const SEATS_TABLE_NAME: &str = "seats";
-pub const TICKETS_TABLE_NAME: &str = "tickets";
-pub const TICKET_FLIGHTS_TABLE_NAME: &str = "ticket_flights";
 
 pub enum Table {
     AircraftDataTable, 
@@ -70,8 +60,8 @@ impl Table {
 
 #[async_trait]
 pub trait TableWorker {
-    async fn query_table(&self, pool: &PgPool) -> Result<()>;
-    async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>>;
-    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String>;
-    async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame>;
+    async fn query_table(&self, pool: &PgPool) -> Result<(), AppError>;
+    async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError>;
+    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError>;
+    async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame, AppError>;
 }

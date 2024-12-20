@@ -20,4 +20,5 @@ dotenvy = "0.15.7"
 lazy_static = "1.4.0"
 geozero = { version = "0.13", features = ["with-postgis-sqlx", "default"] }
 thiserror = "1"
+color-eyre = "0.6"
 anyhow = "1"

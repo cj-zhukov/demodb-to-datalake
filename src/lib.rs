@@ -5,5 +5,5 @@ mod utils;
 
 pub use tables::table::*;
 pub use db::*;
-pub use error::Result;
+pub use error::AppError;
 pub use utils::*;
