@@ -96,11 +96,10 @@ impl TableWorker for Bookings {
     
         let rows: Vec<String> = data
             .iter()
-            // .map(|row| format!("book_ref: {}, book_date: {}, total_amount: {}", 
-            .map(|row| format!("book_ref: {}, book_date: {}", 
+            .map(|row| format!("book_ref: {}, book_date: {}, total_amount: {}", 
                 row.get::<String, _>("book_ref"), 
                 row.get::<DateTime<Utc>, _>("book_date"), 
-                // row.get::<f32, _>("total_amount"), // numeric(10,2)?
+                row.get::<Decimal, _>("total_amount"), 
             ))
             .collect();
     

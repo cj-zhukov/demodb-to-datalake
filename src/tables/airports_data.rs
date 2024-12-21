@@ -129,7 +129,6 @@ impl TableWorker for AirportsData {
     }
 
     async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError> {
-        // let sql = format!("select * from {} limit {}", Self::table_name(), MAX_ROWS);
         let sql = format!("select 
                                         airport_code, 
                                         airport_name, 
