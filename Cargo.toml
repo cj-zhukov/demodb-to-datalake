@@ -4,21 +4,21 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1", features= ["full"] }
-tokio-stream = "0.1"
+async-trait = "0.1"
+arrow-json = "53"
+color-eyre = "0.6"
+datafusion = "43"
+dotenvy = "0.15.7"
+geo = "0.28"
+geo-types = "0.7"
+geozero = { version = "0.13", features = ["with-postgis-sqlx", "default"] }
+lazy_static = "1.4.0"
 futures-util = "0.3"
-sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal", "chrono"] }
-datafusion = "38"
-parquet = "51"
+parquet = "53"
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-async-trait = "0.1"
-geo = "0.28"
-geo-types = "0.7"
-dotenvy = "0.15.7"
-lazy_static = "1.4.0"
-geozero = { version = "0.13", features = ["with-postgis-sqlx", "default"] }
-thiserror = "1"
-color-eyre = "0.6"
-anyhow = "1"
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal", "chrono"] }
+tokio = { version = "1", features= ["full"] }
+tokio-stream = "0.1"
+thiserror = "2"

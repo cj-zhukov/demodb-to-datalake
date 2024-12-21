@@ -24,8 +24,9 @@ impl Serialize for Bookings {
         S: serde::Serializer 
     {
         let book_date = self.book_date.map(|val| val.to_rfc3339());
+        let total_amount = self.total_amount.map(|val| val.to_string());
 
-        serde_json::json!({ "book_ref": self.book_ref, "book_date": book_date, "total_amount": self.total_amount})
+        serde_json::json!({ "book_ref": self.book_ref, "book_date": book_date, "total_amount": total_amount})
             .serialize(serializer)
     }
 }

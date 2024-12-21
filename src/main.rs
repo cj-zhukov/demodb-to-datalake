@@ -1,6 +1,6 @@
 use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 
-use anyhow::{Context, Result};
+use color_eyre::{eyre::Context, Result};
 use secrecy::ExposeSecret;
 
 #[tokio::main]
@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
             let res = worker.query_table_to_df(db.as_ref())
                 .await
-                .context(format!("failed when quering table: {}", table_name))?;
+                .wrap_err(format!("failed when quering table: {}", table_name))?;
             res.show().await?;
 
             // let res = worker.query_table_to_json(&pool)

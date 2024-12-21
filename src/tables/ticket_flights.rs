@@ -10,12 +10,24 @@ use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
 
-#[derive(Debug, Default, FromRow, Serialize)]
+#[derive(Debug, Default, FromRow)]
 pub struct TicketFlights {
     pub ticket_no: String,
     pub flight_id: Option<i32>,
     pub fare_conditions: Option<String>,
     pub amount: Option<Decimal>,
+}
+
+impl Serialize for TicketFlights {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        let amount = self.amount.map(|val| val.to_string());
+
+        serde_json::json!({ "ticket_no": self.ticket_no, "flight_id": self.flight_id, "fare_conditions": self.fare_conditions, "amount": amount})
+            .serialize(serializer)
+    }
 }
 
 impl TicketFlights {
