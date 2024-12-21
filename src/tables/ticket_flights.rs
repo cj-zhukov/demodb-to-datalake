@@ -54,13 +54,13 @@ impl TicketFlights {
         let mut ticket_nos = Vec::new();
         let mut flight_ids = Vec::new();
         let mut fare_conditionses = Vec::new();
-        let mut amounts: Vec<Option<String>> = Vec::new();
+        let mut amounts = Vec::new();
 
         for record in records {
             ticket_nos.push(record.ticket_no.clone());
             flight_ids.push(record.flight_id);
             fare_conditionses.push(record.fare_conditions.clone());
-            amounts.push(None); 
+            amounts.push(record.amount.map(|val| val.to_string())); 
         }
 
         let schema = Self::schema();

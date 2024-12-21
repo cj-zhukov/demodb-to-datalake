@@ -4,7 +4,7 @@ use dotenvy::dotenv;
 use secrecy::Secret;
 
 pub const MAX_DB_CONS: u32 = 100;
-pub const MAX_ROWS: u32 = 100;
+pub const MAX_ROWS: u32 = 10;
 pub const AIRCRAFTS_DATA_TABLE_NAME: &str = "aircrafts_data";
 pub const AIRPORTS_DATA_TABLE_NAME: &str = "airports_data";
 pub const BOARDING_PASSES_TABLE_NAME: &str = "boarding_passes";

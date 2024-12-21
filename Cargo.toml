@@ -11,7 +11,7 @@ datafusion = "43"
 dotenvy = "0.15.7"
 geo = "0.28"
 geo-types = "0.7"
-geozero = { version = "0.13", features = ["with-postgis-sqlx", "default"] }
+geozero = { version = "0.14", features = ["with-postgis-sqlx", "default", "with-postgis-postgres"] }
 lazy_static = "1.4.0"
 futures-util = "0.3"
 parquet = "53"
