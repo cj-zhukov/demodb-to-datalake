@@ -1,4 +1,4 @@
-use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
+use demodb_to_datalake::{write_df_to_file, PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 use demodb_to_datalake::{AIRCRAFTS_DATA_TABLE_NAME, AIRPORTS_DATA_TABLE_NAME, BOARDING_PASSES_TABLE_NAME, BOOKINGS_TABLE_NAME, FLIGHTS_TABLE_NAME, SEATS_TABLE_NAME, TICKETS_TABLE_NAME, TICKET_FLIGHTS_TABLE_NAME};
 
 use color_eyre::{eyre::Context, Result};
@@ -22,11 +22,12 @@ async fn main() -> Result<()> {
             let res = worker.query_table_to_df(db.as_ref())
                 .await
                 .wrap_err(format!("failed when quering table: {}", table.as_ref()))?;
-            res.show().await?;
+            res.clone().show().await?;
             println!();
 
             // save into file
-            // write_df_to_file(res, "foo.parquet").await?;
+            // let file_name = format!("{}.parquet", table.as_ref());
+            // write_df_to_file(res, &file_name).await?;
         }
     }
 
