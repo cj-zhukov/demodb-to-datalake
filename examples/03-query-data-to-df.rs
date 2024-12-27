@@ -16,13 +16,12 @@ async fn main() -> Result<()> {
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {
-            let table_name = table.name();
             let worker = table.to_worker();
 
             // results as dataframe
             let res = worker.query_table_to_df(db.as_ref())
                 .await
-                .wrap_err(format!("failed when quering table: {}", table_name))?;
+                .wrap_err(format!("failed when quering table: {}", table.as_ref()))?;
             res.show().await?;
             println!();
 
