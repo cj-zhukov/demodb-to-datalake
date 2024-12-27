@@ -45,10 +45,10 @@ impl Table {
             _ => None, 
         }
     }
-    
+
     pub fn to_worker(&self) -> Box<dyn TableWorker> {
         match *self {
-            Self::AircraftDataTable => Box::new(aircrafts_data::AircraftData::new()),
+            Self::AircraftDataTable => Box::new(aircrafts_data::AircraftsData::new()),
             Self::AirportsDataTable => Box::new(airports_data::AirportsData::new()),
             Self::BoardingPassesTable => Box::new(boarding_passes::BoardingPasses::new()), 
             Self::BookingsTable => Box::new(bookings::Bookings::new()),

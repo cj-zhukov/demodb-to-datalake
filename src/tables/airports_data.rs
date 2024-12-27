@@ -38,13 +38,15 @@ pub struct Coordinates {
     pub y: f64,
 }
 
+impl AsRef<str> for AirportsData {
+    fn as_ref(&self) -> &str {
+        AIRPORTS_DATA_TABLE_NAME
+    }
+}
+
 impl AirportsData {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn table_name() -> String {
-        AIRPORTS_DATA_TABLE_NAME.to_string()
     }
 }
 
@@ -120,7 +122,7 @@ impl TableWorker for AirportsData {
                                         city, 
                                         json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
                                         timezone 
-                                    from {} limit {}", Self::table_name(), MAX_ROWS);
+                                    from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
@@ -135,7 +137,7 @@ impl TableWorker for AirportsData {
                                         city, 
                                         json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
                                         timezone 
-                                    from {} limit {}", Self::table_name(), MAX_ROWS);
+                                    from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
     
@@ -160,7 +162,7 @@ impl TableWorker for AirportsData {
                                         city, 
                                         json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
                                         timezone 
-                                    from {} limit {}", Self::table_name(), MAX_ROWS);
+                                    from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
@@ -176,7 +178,7 @@ impl TableWorker for AirportsData {
                                         city, 
                                         json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
                                         timezone 
-                                    from {} limit {}", Self::table_name(), MAX_ROWS);
+                                    from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;

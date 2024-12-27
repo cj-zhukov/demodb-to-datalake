@@ -13,7 +13,7 @@ use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
 
 #[derive(Debug, Default, FromRow, Serialize)]
-pub struct AircraftData {
+pub struct AircraftsData {
     pub aircraft_code: String,
     pub model: Option<Json<Model>>,
     pub range: Option<i32>
@@ -25,17 +25,19 @@ pub struct Model {
     pub ru: Option<String>,
 }
 
-impl AircraftData {
-    pub fn new() -> Self {
-        AircraftData::default()
-    }
-
-    pub fn table_name() -> String {
-        AIRCRAFTS_DATA_TABLE_NAME.to_string()
+impl AsRef<str> for AircraftsData {
+    fn as_ref(&self) -> &str {
+        AIRCRAFTS_DATA_TABLE_NAME
     }
 }
 
-impl AircraftData {
+impl AircraftsData {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl AircraftsData {
     pub fn schema() -> Schema {
         Schema::new(vec![
             Field::new("aircraft_code", DataType::Utf8, false),
@@ -77,9 +79,9 @@ impl AircraftData {
 }
 
 #[async_trait]
-impl TableWorker for AircraftData {
+impl TableWorker for AircraftsData {
     async fn query_table(&self, pool: &PgPool) -> Result<(), AppError> {
-        let sql = format!("select * from {} limit {}", Self::table_name(), MAX_ROWS);
+        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
@@ -88,7 +90,7 @@ impl TableWorker for AircraftData {
     }
 
     async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError> {
-        let sql = format!("select * from {} limit {}", Self::table_name(), MAX_ROWS);
+        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
     
@@ -105,7 +107,7 @@ impl TableWorker for AircraftData {
     }
 
     async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame, AppError> {
-        let sql = format!("select * from {} limit {}", Self::table_name(), MAX_ROWS);
+        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
@@ -115,7 +117,7 @@ impl TableWorker for AircraftData {
     }
 
     async fn query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select * from {} limit {};", Self::table_name(), MAX_ROWS);
+        let sql = format!("select * from {} limit {};", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
