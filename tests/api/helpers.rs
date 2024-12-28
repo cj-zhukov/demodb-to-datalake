@@ -29,4 +29,17 @@ impl TestApp {
         let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
         Ok(res)
     }
+
+    pub async fn test_airports_data(&self) -> Result<DataFrame> {
+        let worker = self.table.to_worker();
+        let sql = format!("select 
+                                    airport_code, 
+                                    airport_name, 
+                                    city, 
+                                    json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
+                                    timezone 
+                                from {}", self.table.as_ref());
+        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        Ok(res)
+    }
 }
