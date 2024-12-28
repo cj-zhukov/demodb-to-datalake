@@ -25,7 +25,7 @@ impl TestApp {
 impl TestApp {
     pub async fn test_aircrafts_data(&self) -> Result<DataFrame> {
         let worker = self.table.to_worker();
-        let sql = format!("select * from {} limit 10", self.table.as_ref());
+        let sql = format!("select * from {}", self.table.as_ref());
         let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
         Ok(res)
     }
