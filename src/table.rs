@@ -1,5 +1,5 @@
 use crate::{tables, AppError, utils::*};
-use tables::{aircrafts_data, airports_data, boarding_passes, bookings, flights, seats, ticket_flights, tickets};
+use tables::*;
 
 use async_trait::async_trait;
 use datafusion::prelude::*;
@@ -48,14 +48,14 @@ impl Table {
 
     pub fn to_worker(&self) -> Box<dyn TableWorker> {
         match *self {
-            Self::AircraftDataTable => Box::new(aircrafts_data::AircraftsData::new()),
-            Self::AirportsDataTable => Box::new(airports_data::AirportsData::new()),
-            Self::BoardingPassesTable => Box::new(boarding_passes::BoardingPasses::new()), 
-            Self::BookingsTable => Box::new(bookings::Bookings::new()),
-            Self::FlightsTable => Box::new(flights::Flights::new()),
-            Self::SeatsTable => Box::new(seats::Seats::new()),
-            Self::TicketsTable => Box::new(tickets::Tickets::new()),
-            Self::TicketFlightsTable => Box::new(ticket_flights::TicketFlights::new()),
+            Self::AircraftDataTable => Box::new(AircraftsData::new()),
+            Self::AirportsDataTable => Box::new(AirportsData::new()),
+            Self::BoardingPassesTable => Box::new(BoardingPasses::new()), 
+            Self::BookingsTable => Box::new(Bookings::new()),
+            Self::FlightsTable => Box::new(Flights::new()),
+            Self::SeatsTable => Box::new(Seats::new()),
+            Self::TicketsTable => Box::new(Tickets::new()),
+            Self::TicketFlightsTable => Box::new(TicketFlights::new()),
         }
     } 
 }
