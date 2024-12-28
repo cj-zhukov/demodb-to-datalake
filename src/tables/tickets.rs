@@ -13,7 +13,8 @@ use datafusion::arrow::array::{RecordBatch, StringArray};
 
 #[derive(Debug, Default, FromRow, Serialize)]
 pub struct Tickets {
-    pub book_ref: String,
+    pub ticket_no: String, 
+    pub book_ref: Option<String>,
     pub passenger_id: Option<String>,
     pub passenger_name: Option<String>,
     pub contact_data: Option<Json<ContactData>>,
@@ -40,7 +41,8 @@ impl Tickets {
 impl Tickets {
     pub fn schema() -> Schema {
         Schema::new(vec![
-            Field::new("book_ref", DataType::Utf8, false),
+            Field::new("ticket_no", DataType::Utf8, false),
+            Field::new("book_ref", DataType::Utf8, true),
             Field::new("passenger_id", DataType::Utf8, true),
             Field::new("passenger_name", DataType::Utf8, true),
             Field::new("contact_data", DataType::Utf8, true), 
@@ -48,12 +50,14 @@ impl Tickets {
     }
 
     pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
+        let mut ticket_nos = Vec::new();
         let mut book_refs = Vec::new();
         let mut passenger_ids = Vec::new();
         let mut passenger_names= Vec::new();
         let mut contact_datas = Vec::new();
 
         for record in records {
+            ticket_nos.push(record.ticket_no.clone());
             book_refs.push(record.book_ref.clone());
             passenger_ids.push(record.passenger_id.clone());
             passenger_names.push(record.passenger_name.clone());
@@ -70,6 +74,7 @@ impl Tickets {
         let batch = RecordBatch::try_new(
             schema.into(),
             vec![
+                Arc::new(StringArray::from(ticket_nos)),
                 Arc::new(StringArray::from(book_refs)),
                 Arc::new(StringArray::from(passenger_ids)), 
                 Arc::new(StringArray::from(passenger_names)),
