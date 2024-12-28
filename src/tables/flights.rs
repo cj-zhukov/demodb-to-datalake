@@ -157,8 +157,11 @@ impl TableWorker for Flights {
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame, AppError> {
-        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+        let sql = match query {
+            None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
+            Some(sql) => sql.to_string(),
+        };
         let query = sqlx::query_as::<_, Self>(&sql);
         let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();

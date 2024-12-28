@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
             let worker = table.to_worker();
 
             // results as dataframe
-            let res = worker.query_table_to_df(db.as_ref())
+            let res = worker.query_table_to_df(db.as_ref(), None)
                 .await
                 .wrap_err(format!("failed when quering table: {}", table.as_ref()))?;
             res.clone().show().await?;

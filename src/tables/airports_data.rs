@@ -155,14 +155,17 @@ impl TableWorker for AirportsData {
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool) -> Result<DataFrame, AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {} limit {}", self.as_ref(), MAX_ROWS);
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+        let sql = match query {
+            None => format!("select 
+                            airport_code, 
+                            airport_name, 
+                            city, 
+                            json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
+                            timezone 
+                        from {} limit {}", self.as_ref(), MAX_ROWS),
+            Some(sql) => sql.to_string(),
+        };
         let query = sqlx::query_as::<_, Self>(&sql);
         let mut records = query.fetch_all(pool).await?;
         let ctx = SessionContext::new();
