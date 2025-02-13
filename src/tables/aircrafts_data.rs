@@ -1,4 +1,4 @@
-use crate::{AppError, TableWorker, AIRCRAFTS_DATA_TABLE_NAME, MAX_ROWS};
+use crate::{AppError, table_worker::TableWorker, AIRCRAFTS_DATA_TABLE_NAME, MAX_ROWS};
 
 use std::fmt::Debug;
 use std::sync::Arc;

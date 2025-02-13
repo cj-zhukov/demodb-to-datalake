@@ -1,4 +1,4 @@
-use crate::{AppError, MAX_ROWS, TableWorker, AIRPORTS_DATA_TABLE_NAME};
+use crate::{AppError, table_worker::TableWorker, MAX_ROWS, AIRPORTS_DATA_TABLE_NAME};
 
 use std::sync::Arc;
 
