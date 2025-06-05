@@ -49,40 +49,37 @@ impl Tickets {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut ticket_nos = Vec::new();
-        let mut book_refs = Vec::new();
-        let mut passenger_ids = Vec::new();
-        let mut passenger_names= Vec::new();
-        let mut contact_datas = Vec::new();
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let ticket_nos = records.iter().map(|r| r.ticket_no.as_str()).collect::<Vec<_>>();
+        let book_refs = records.iter().map(|r| r.book_ref.as_deref()).collect::<Vec<_>>();
+        let passenger_ids = records.iter().map(|r| r.passenger_id.as_deref()).collect::<Vec<_>>();
+        let passenger_names = records.iter().map(|r| r.passenger_name.as_deref()).collect::<Vec<_>>();
+        let contact_data_all = records
+            .iter()
+            .map(|r| 
+                r.contact_data
+                .as_ref()
+                .map(|val| serde_json::to_string(val))
+                .transpose()
+            )
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
 
-        for record in records {
-            ticket_nos.push(record.ticket_no.clone());
-            book_refs.push(record.book_ref.clone());
-            passenger_ids.push(record.passenger_id.clone());
-            passenger_names.push(record.passenger_name.clone());
-            let contact_data = match &mut record.contact_data {
-                Some(val) => {
-                    Some(serde_json::to_string(&val)?)
-                },
-                None => None
-            };
-            contact_datas.push(contact_data);
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(StringArray::from(ticket_nos)),
                 Arc::new(StringArray::from(book_refs)),
                 Arc::new(StringArray::from(passenger_ids)), 
                 Arc::new(StringArray::from(passenger_names)),
-                Arc::new(StringArray::from(contact_datas)),
+                Arc::new(StringArray::from(contact_data_all)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -94,7 +91,6 @@ impl TableWorker for Tickets {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -102,7 +98,6 @@ impl TableWorker for Tickets {
         let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("ticket_no: {}, book_ref: {}, passenger_id: {}, passenger_name: {}, contact_data: {}", 
@@ -113,20 +108,17 @@ impl TableWorker for Tickets {
                 row.get::<Value, _>("contact_data")),
             )
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
         Ok(df)
     }
 
@@ -135,7 +127,6 @@ impl TableWorker for Tickets {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

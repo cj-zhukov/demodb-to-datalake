@@ -7,7 +7,8 @@ use secrecy::ExposeSecret;
 #[tokio::test]
 async fn test_flights() {
     let app = TestApp::new(DATABASE_URL.expose_secret(), Table::TicketsTable).await.unwrap();
-    let res = app.test_tickets().await.unwrap();
+    let ctx = SessionContext::new();
+    let res = app.test_tickets(&ctx).await.unwrap();
 
     assert_eq!(res.schema().fields().len(), 5); // columns count
     assert_eq!(res.clone().count().await.unwrap(), 10); // rows count

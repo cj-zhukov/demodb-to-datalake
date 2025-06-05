@@ -61,44 +61,40 @@ impl AirportsData {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut airport_codes = Vec::new();
-        let mut airport_names = Vec::new();
-        let mut cities= Vec::new();
-        let mut coordinates_all = Vec::new();
-        let mut timezones = Vec::new();
-
-        for record in records {
-            airport_codes.push(record.airport_code.clone());
-            let airport_name = match &mut record.airport_name {
-                Some(val) => {
-                    Some(serde_json::to_string(&val)?)
-                },
-                None => None
-            };
-            airport_names.push(airport_name);
-            let city = match &mut record.city {
-                Some(val) => {
-                    Some(serde_json::to_string(&val)?)
-                },
-                None => None
-            };
-            cities.push(city);
-
-            let coordinates = match &mut record.coordinates {
-                Some(val) => {
-                    Some(serde_json::to_string(&val)?)
-                },
-                None => None
-            };
-            coordinates_all.push(coordinates);
-
-            timezones.push(record.timezone.clone());
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let airport_codes = records.iter().map(|r| r.airport_code.as_str()).collect::<Vec<_>>();
+        let airport_names = records
+            .iter()
+            .map(|r| 
+                r.airport_name
+                .as_ref()
+                .map(|val| serde_json::to_string(val))
+                .transpose()
+            )
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
+        let cities = records
+            .iter()
+            .map(|r| 
+                r.city
+                .as_ref()
+                .map(|val| serde_json::to_string(val))
+                .transpose()
+            )
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
+        let coordinates_all = records
+            .iter()
+            .map(|r| 
+                r.coordinates
+                .as_ref()
+                .map(|val| serde_json::to_string(val))
+                .transpose()
+            )
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
+        let timezones = records.iter().map(|r| r.timezone.as_deref()).collect::<Vec<_>>();
+        
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(StringArray::from(airport_codes)), 
                 Arc::new(StringArray::from(airport_names)),
@@ -106,9 +102,12 @@ impl AirportsData {
                 Arc::new(StringArray::from(coordinates_all)),
                 Arc::new(StringArray::from(timezones)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -126,7 +125,6 @@ impl TableWorker for AirportsData {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -140,7 +138,6 @@ impl TableWorker for AirportsData {
                                     from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {}, timezone: {}", 
@@ -151,11 +148,10 @@ impl TableWorker for AirportsData {
                 row.get::<String, _>("timezone"),
             ))
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select 
                             airport_code, 
@@ -167,10 +163,8 @@ impl TableWorker for AirportsData {
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
         Ok(df)
     }
 
@@ -185,7 +179,6 @@ impl TableWorker for AirportsData {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

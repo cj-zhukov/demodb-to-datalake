@@ -52,30 +52,39 @@ impl Bookings {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut book_refs = Vec::new();
-        let mut book_dates: Vec<Option<String>> = Vec::new();
-        let mut total_amounts = Vec::new();
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let book_refs = records.iter().map(|r| r.book_ref.as_str()).collect::<Vec<_>>();
+        let book_dates = records
+            .iter()
+            .map(|r| 
+                r.book_date
+                .as_ref()
+                .map(|val| val.to_rfc3339())
+            )
+            .collect::<Vec<_>>();
+        let total_amounts = records
+            .iter()
+            .map(|r|
+                r.total_amount
+                .as_ref()
+                .map(|val| val.to_string())
+            )
+            .collect::<Vec<_>>();
 
-        for record in records {
-            book_refs.push(record.book_ref.clone());
-            let book_date = record.book_date.as_mut().map(|val| val.to_rfc3339());
-            book_dates.push(book_date);
-            let total_amount = record.total_amount.as_mut().map(|val| val.to_string());
-            total_amounts.push(total_amount);
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(StringArray::from(book_refs)), 
                 Arc::new(StringArray::from(book_dates)),
                 Arc::new(StringArray::from(total_amounts)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -87,7 +96,6 @@ impl TableWorker for Bookings {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -95,7 +103,6 @@ impl TableWorker for Bookings {
         let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("book_ref: {}, book_date: {}, total_amount: {}", 
@@ -104,20 +111,17 @@ impl TableWorker for Bookings {
                 row.get::<Decimal, _>("total_amount"), 
             ))
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
         Ok(df)
     }
 
@@ -126,7 +130,6 @@ impl TableWorker for Bookings {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

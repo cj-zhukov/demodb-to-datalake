@@ -46,34 +46,33 @@ impl AircraftsData {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut aircraft_codes = Vec::new();
-        let mut models = Vec::new();
-        let mut ranges= Vec::new();
-
-        for record in records {
-            aircraft_codes.push(record.aircraft_code.clone());
-            let model = match &mut record.model {
-                Some(v) => {
-                    Some(serde_json::to_string(&v)?)
-                }
-                None => None
-            };
-            models.push(model);
-            ranges.push(record.range);
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let aircraft_codes = records.iter().map(|r| r.aircraft_code.as_str()).collect::<Vec<_>>();
+        let models = records
+            .iter()
+            .map(|r| {
+                r.model
+                    .as_ref()
+                    .map(|val| serde_json::to_string(val))
+                    .transpose()
+            })
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
+        let ranges = records.iter().map(|r| r.range).collect::<Vec<_>>();
+        
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(StringArray::from(aircraft_codes)), 
                 Arc::new(StringArray::from(models)),
                 Arc::new(Int32Array::from(ranges)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -85,7 +84,6 @@ impl TableWorker for AircraftsData {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -93,7 +91,6 @@ impl TableWorker for AircraftsData {
         let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("aircraft_code: {}, model: {}, range: {}", 
@@ -102,29 +99,25 @@ impl TableWorker for AircraftsData {
                 row.get::<i32, _>("range"),
             ))
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(&ctx, &records)?;
         Ok(df)
     }
 
     async fn query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select * from {} limit {};", self.as_ref(), MAX_ROWS);
+        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

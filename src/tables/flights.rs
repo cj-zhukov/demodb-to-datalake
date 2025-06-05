@@ -70,38 +70,49 @@ impl Flights {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut flight_ids = Vec::new();
-        let mut flight_nos = Vec::new();
-        let mut scheduled_departures = Vec::new();
-        let mut scheduled_arrivals = Vec::new();
-        let mut departure_airports = Vec::new();
-        let mut arrival_airports = Vec::new();
-        let mut statuses = Vec::new();
-        let mut aircraft_codes = Vec::new();
-        let mut actual_departures = Vec::new();
-        let mut actual_arrivals = Vec::new();
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let flight_ids = records.iter().map(|r| r.flight_id).collect::<Vec<_>>();
+        let flight_nos = records.iter().map(|r| r.flight_no.as_deref()).collect::<Vec<_>>();
+        let scheduled_departures = records
+            .iter()
+            .map(|r| 
+                r.scheduled_departure
+                .as_ref()
+                .map(|val| val.to_rfc3339())
+            )
+            .collect::<Vec<_>>();
+        let scheduled_arrivals = records
+            .iter()
+            .map(|r| 
+                r.scheduled_arrival
+                .as_ref()
+                .map(|val| val.to_rfc3339())
+            )
+            .collect::<Vec<_>>();
+        let departure_airports = records.iter().map(|r| r.departure_airport.as_deref()).collect::<Vec<_>>();
+        let arrival_airports = records.iter().map(|r| r.arrival_airport.as_deref()).collect::<Vec<_>>();
+        let statuses = records.iter().map(|r| r.status.as_deref()).collect::<Vec<_>>();
+        let aircraft_codes = records.iter().map(|r| r.aircraft_code.as_deref()).collect::<Vec<_>>();
+        let actual_departures = records
+            .iter()
+            .map(|r| 
+                r.actual_departure
+                .as_ref()
+                .map(|val| val.to_rfc3339())
+            )
+            .collect::<Vec<_>>();
+        let actual_arrivals = records
+            .iter()
+            .map(|r| 
+                r.actual_arrival
+                .as_ref()
+                .map(|val| val.to_rfc3339())
+            )
+            .collect::<Vec<_>>();
 
-        for record in records {
-            flight_ids.push(record.flight_id);
-            flight_nos.push(record.flight_no.clone());
-            let scheduled_departure = record.scheduled_departure.as_mut().map(|val| val.to_rfc3339());
-            scheduled_departures.push(scheduled_departure);
-            let scheduled_arrival = record.scheduled_arrival.as_mut().map(|val| val.to_rfc3339());
-            scheduled_arrivals.push(scheduled_arrival);
-            departure_airports.push(record.departure_airport.clone());
-            arrival_airports.push(record.arrival_airport.clone());
-            statuses.push(record.status.clone());
-            aircraft_codes.push(record.aircraft_code.clone());
-            let actual_departure = record.actual_departure.as_mut().map(|val| val.to_rfc3339());
-            actual_departures.push(actual_departure);
-            let actual_arrival = record.actual_arrival.as_mut().map(|val| val.to_rfc3339());
-            actual_arrivals.push(actual_arrival);
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(Int32Array::from(flight_ids)), 
                 Arc::new(StringArray::from(flight_nos)),
@@ -114,9 +125,12 @@ impl Flights {
                 Arc::new(StringArray::from(actual_departures)),
                 Arc::new(StringArray::from(actual_arrivals)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -128,7 +142,6 @@ impl TableWorker for Flights {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -136,7 +149,6 @@ impl TableWorker for Flights {
         let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("flight_id: {}, flight_no: {}, scheduled_departure: {}, scheduled_arrival: {}, departure_airport: {} \
@@ -153,20 +165,17 @@ impl TableWorker for Flights {
                 row.get::<Option<DateTime<Utc>>, _>("actual_arrival"),
             ))
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
         Ok(df)
     }
 
@@ -175,7 +184,6 @@ impl TableWorker for Flights {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

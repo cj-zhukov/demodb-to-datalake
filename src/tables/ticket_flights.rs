@@ -52,31 +52,34 @@ impl TicketFlights {
         ])
     }
 
-    pub fn to_df(ctx: SessionContext, records: &mut Vec<Self>) -> Result<DataFrame, AppError> {
-        let mut ticket_nos = Vec::new();
-        let mut flight_ids = Vec::new();
-        let mut fare_conditionses = Vec::new();
-        let mut amounts = Vec::new();
+    fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
+        let schema = Arc::new(Self::schema());
+        let ticket_nos = records.iter().map(|r| r.ticket_no.as_str()).collect::<Vec<_>>();
+        let flight_ids = records.iter().map(|r| r.flight_id).collect::<Vec<_>>();
+        let fare_conditions_all = records.iter().map(|r| r.fare_conditions.as_deref()).collect::<Vec<_>>();
+        let amounts = records
+            .iter()
+            .map(|r|
+                r.amount
+                .as_ref()
+                .map(|val| val.to_string())
+            )
+            .collect::<Vec<_>>();
 
-        for record in records {
-            ticket_nos.push(record.ticket_no.clone());
-            flight_ids.push(record.flight_id);
-            fare_conditionses.push(record.fare_conditions.clone());
-            amounts.push(record.amount.map(|val| val.to_string())); 
-        }
-
-        let schema = Self::schema();
-        let batch = RecordBatch::try_new(
-            schema.into(),
+        Ok(RecordBatch::try_new(
+            schema,
             vec![
                 Arc::new(StringArray::from(ticket_nos)),
                 Arc::new(Int32Array::from(flight_ids)), 
-                Arc::new(StringArray::from(fare_conditionses)),
+                Arc::new(StringArray::from(fare_conditions_all)),
                 Arc::new(StringArray::from(amounts)),
             ],
-        )?;
-        let df = ctx.read_batch(batch)?;
+        )?)
+    }
 
+    pub fn to_df(ctx: &SessionContext, records: &[Self]) -> Result<DataFrame, AppError> {
+        let batch = Self::to_record_batch(records)?;
+        let df = ctx.read_batch(batch)?;
         Ok(df)
     }
 }
@@ -89,7 +92,6 @@ impl TableWorker for TicketFlights {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
-
         Ok(())
     }
 
@@ -97,7 +99,6 @@ impl TableWorker for TicketFlights {
         let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
         let query = sqlx::query(&sql);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
-    
         let rows: Vec<String> = data
             .iter()
             .map(|row| format!("ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}", 
@@ -107,20 +108,17 @@ impl TableWorker for TicketFlights {
                 row.get::<Decimal, _>("amount"))
             )
             .collect();
-    
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
         let sql = match query {
             None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
             Some(sql) => sql.to_string(),
         };
         let query = sqlx::query_as::<_, Self>(&sql);
-        let mut records = query.fetch_all(pool).await?;
-        let ctx = SessionContext::new();
-        let df = Self::to_df(ctx, &mut records)?;
-
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
         Ok(df)
     }
 
@@ -129,7 +127,6 @@ impl TableWorker for TicketFlights {
         let query = sqlx::query_as::<_, Self>(&sql);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
-        
         Ok(res)
     }
 }

@@ -22,14 +22,14 @@ impl TestApp {
 }
 
 impl TestApp {
-    pub async fn test_aircrafts_data(&self) -> Result<DataFrame> {
+    pub async fn test_aircrafts_data(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {}", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), &ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_airports_data(&self) -> Result<DataFrame> {
+    pub async fn test_airports_data(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select 
                                     airport_code, 
@@ -38,53 +38,53 @@ impl TestApp {
                                     json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
                                     timezone 
                                 from {}", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_boarding_passes(&self) -> Result<DataFrame> {
+    pub async fn test_boarding_passes(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {} limit 10", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_bookings(&self) -> Result<DataFrame> {
+    pub async fn test_bookings(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {} limit 10", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_flights(&self) -> Result<DataFrame> {
+    pub async fn test_flights(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {} 
                                     where 1 = 1
                                     and actual_departure is not null 
                                     and actual_arrival is not null 
                                     limit 10", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_seats(&self) -> Result<DataFrame> {
+    pub async fn test_seats(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {}", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_ticket_flights(&self) -> Result<DataFrame> {
+    pub async fn test_ticket_flights(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {} order by ticket_no limit 10", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 
-    pub async fn test_tickets(&self) -> Result<DataFrame> {
+    pub async fn test_tickets(&self, ctx: &SessionContext) -> Result<DataFrame> {
         let worker = self.table.to_worker();
         let sql = format!("select * from {} order by ticket_no limit 10", self.table.as_ref());
-        let res = worker.query_table_to_df(&self.db, Some(&sql)).await?;
+        let res = worker.query_table_to_df(&self.db, Some(&sql), ctx).await?;
         Ok(res)
     }
 }

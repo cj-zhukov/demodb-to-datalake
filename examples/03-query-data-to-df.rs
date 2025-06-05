@@ -1,4 +1,5 @@
-use demodb_to_datalake::{write_df_to_file, PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
+use datafusion::prelude::SessionContext;
+use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 use demodb_to_datalake::{AIRCRAFTS_DATA_TABLE_NAME, AIRPORTS_DATA_TABLE_NAME, BOARDING_PASSES_TABLE_NAME, BOOKINGS_TABLE_NAME, FLIGHTS_TABLE_NAME, SEATS_TABLE_NAME, TICKETS_TABLE_NAME, TICKET_FLIGHTS_TABLE_NAME};
 
 use color_eyre::{eyre::Context, Result};
@@ -13,13 +14,14 @@ async fn main() -> Result<()> {
         .await?;
 
     let tables = [AIRCRAFTS_DATA_TABLE_NAME, AIRPORTS_DATA_TABLE_NAME, BOARDING_PASSES_TABLE_NAME, BOOKINGS_TABLE_NAME, FLIGHTS_TABLE_NAME, SEATS_TABLE_NAME, TICKETS_TABLE_NAME, TICKET_FLIGHTS_TABLE_NAME];
+    let ctx = SessionContext::new();
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {
             let worker = table.to_worker();
 
             // results as dataframe
-            let res = worker.query_table_to_df(db.as_ref(), None)
+            let res = worker.query_table_to_df(db.as_ref(), None, &ctx)
                 .await
                 .wrap_err(format!("failed when quering table: {}", table.as_ref()))?;
             res.clone().show().await?;
