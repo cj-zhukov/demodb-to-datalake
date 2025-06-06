@@ -1,7 +1,7 @@
 use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 use demodb_to_datalake::{AIRCRAFTS_DATA_TABLE_NAME, AIRPORTS_DATA_TABLE_NAME, BOARDING_PASSES_TABLE_NAME, BOOKINGS_TABLE_NAME, FLIGHTS_TABLE_NAME, SEATS_TABLE_NAME, TICKETS_TABLE_NAME, TICKET_FLIGHTS_TABLE_NAME};
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::Result;
 use secrecy::ExposeSecret;
 
 #[tokio::main]
@@ -16,12 +16,9 @@ async fn main() -> Result<()> {
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {
-            let worker = table.to_worker();
             // print results
             println!("table: {}", table.as_ref());
-            worker.query_table(db.as_ref())
-                .await
-                .wrap_err(format!("failed when quering table: {}", table.as_ref()))?;
+            table.run_query_table(db.as_ref()).await?;
         }
     }
 

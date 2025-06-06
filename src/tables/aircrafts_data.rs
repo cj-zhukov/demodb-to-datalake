@@ -1,4 +1,5 @@
-use crate::{AppError, table_worker::TableWorker, AIRCRAFTS_DATA_TABLE_NAME, MAX_ROWS};
+use crate::table_worker::{TableWorker, TableWorkerStatic};
+use crate::{AppError, AIRCRAFTS_DATA_TABLE_NAME, MAX_ROWS};
 
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -119,5 +120,50 @@ impl TableWorker for AircraftsData {
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
         Ok(res)
+    }
+}
+
+#[async_trait]
+impl TableWorkerStatic for AircraftsData {
+    async fn query_table(pool: &PgPool) -> Result<(), AppError> {
+        let sql = format!("select * from {AIRCRAFTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        println!("{:?}", data);
+        Ok(())
+    }
+
+    async fn query_table_to_string(pool: &PgPool) -> Result<Vec<String>, AppError> {
+        let sql = format!("select * from {AIRCRAFTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
+        let query = sqlx::query(&sql);
+        let data: Vec<PgRow> = query.fetch_all(pool).await?;
+        let rows: Vec<String> = data
+            .iter()
+            .map(|row| format!("aircraft_code: {}, model: {}, range: {}", 
+                row.get::<String, _>("aircraft_code"), 
+                row.get::<Value, _>("model"), 
+                row.get::<i32, _>("range"),
+            ))
+            .collect();
+        Ok(rows)
+    }
+
+    async fn query_table_to_json(pool: &PgPool) -> Result<String, AppError> {
+        let sql = format!("select * from {AIRCRAFTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let data = query.fetch_all(pool).await?;
+        let res = serde_json::to_string(&data)?;
+        Ok(res)
+    }
+
+    async fn query_table_to_df(pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+        let sql = match query {
+            None => format!("select * from {AIRCRAFTS_DATA_TABLE_NAME} limit {MAX_ROWS}"),
+            Some(sql) => sql.to_string(),
+        };
+        let query = sqlx::query_as::<_, Self>(&sql);
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(&ctx, &records)?;
+        Ok(df)
     }
 }
