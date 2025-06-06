@@ -15,7 +15,11 @@ parquet = "53"
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal", "chrono"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "json", "rust_decimal", "chrono"] }
 tokio = { version = "1", features= ["full"] }
 tokio-stream = "0.1"
 thiserror = "2"
+sqlparser = "0.56"
+
+[dev-dependencies]
+rstest = "0.24"

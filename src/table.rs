@@ -1,8 +1,8 @@
 use datafusion::prelude::{DataFrame, SessionContext};
 use sqlx::PgPool;
 
-use crate::table_worker::{process_query_table, process_table_to_json, process_table_to_string, process_table_to_df};
-use crate::{table_worker::TableWorker, utils::*};
+use crate::table_worker::helpers::*;
+use crate::{table_worker::TableWorkerDyn, utils::*};
 use crate::{tables::*, AppError};
 
 pub enum Table {
@@ -49,7 +49,7 @@ impl Table {
 
 // Dynamic dispatch
 impl Table {
-    pub fn to_worker(&self) -> Box<dyn TableWorker> {
+    pub fn to_worker(&self) -> Box<dyn TableWorkerDyn> {
         match *self {
             Self::AircraftDataTable => Box::new(AircraftsData::new()),
             Self::AirportsDataTable => Box::new(AirportsData::new()),
@@ -65,49 +65,49 @@ impl Table {
 
 // Static dispatch
 impl Table {
-    pub async fn run_query_table(&self, pool: &PgPool) -> Result<(), AppError> {
+    pub async fn run_query_table(&self, pool: &PgPool, query: &str) -> Result<(), AppError> {
         match *self {
-            Self::AircraftDataTable => process_query_table::<AircraftsData>(pool).await,
-            Self::AirportsDataTable => process_query_table::<AirportsData>(pool).await,
-            Self::BoardingPassesTable => process_query_table::<BoardingPasses>(pool).await,
-            Self::BookingsTable => process_query_table::<Bookings>(pool).await,
-            Self::FlightsTable => process_query_table::<Flights>(pool).await,
-            Self::SeatsTable => process_query_table::<Seats>(pool).await,
-            Self::TicketsTable => process_query_table::<Tickets>(pool).await,
-            Self::TicketFlightsTable => process_query_table::<TicketFlights>(pool).await,
+            Self::AircraftDataTable => process_query_table::<AircraftsData>(pool, query).await,
+            Self::AirportsDataTable => process_query_table::<AirportsData>(pool, query).await,
+            Self::BoardingPassesTable => process_query_table::<BoardingPasses>(pool, query).await,
+            Self::BookingsTable => process_query_table::<Bookings>(pool, query).await,
+            Self::FlightsTable => process_query_table::<Flights>(pool, query).await,
+            Self::SeatsTable => process_query_table::<Seats>(pool, query).await,
+            Self::TicketsTable => process_query_table::<Tickets>(pool, query).await,
+            Self::TicketFlightsTable => process_query_table::<TicketFlights>(pool, query).await,
         }
     }
 
-    pub async fn run_query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError> {
+    pub async fn run_query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
         match *self {
-            Self::AircraftDataTable => process_table_to_string::<AircraftsData>(pool).await,
-            Self::AirportsDataTable => process_table_to_string::<AirportsData>(pool).await,
-            Self::BoardingPassesTable => process_table_to_string::<BoardingPasses>(pool).await,
-            Self::BookingsTable => process_table_to_string::<Bookings>(pool).await,
-            Self::FlightsTable => process_table_to_string::<Flights>(pool).await,
-            Self::SeatsTable => process_table_to_string::<Seats>(pool).await,
-            Self::TicketsTable => process_table_to_string::<Tickets>(pool).await,
-            Self::TicketFlightsTable => process_table_to_string::<TicketFlights>(pool).await,
+            Self::AircraftDataTable => process_table_to_string::<AircraftsData>(pool, query).await,
+            Self::AirportsDataTable => process_table_to_string::<AirportsData>(pool, query).await,
+            Self::BoardingPassesTable => process_table_to_string::<BoardingPasses>(pool, query).await,
+            Self::BookingsTable => process_table_to_string::<Bookings>(pool, query).await,
+            Self::FlightsTable => process_table_to_string::<Flights>(pool, query).await,
+            Self::SeatsTable => process_table_to_string::<Seats>(pool, query).await,
+            Self::TicketsTable => process_table_to_string::<Tickets>(pool, query).await,
+            Self::TicketFlightsTable => process_table_to_string::<TicketFlights>(pool, query).await,
         }
     }
 
-    pub async fn run_query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError> {
+    pub async fn run_query_table_to_json(&self, pool: &PgPool, query: &str) -> Result<String, AppError> {
         match *self {
-            Self::AircraftDataTable => process_table_to_json::<AircraftsData>(pool).await,
-            Self::AirportsDataTable => process_table_to_json::<AirportsData>(pool).await,
-            Self::BoardingPassesTable => process_table_to_json::<BoardingPasses>(pool).await,
-            Self::BookingsTable => process_table_to_json::<Bookings>(pool).await,
-            Self::FlightsTable => process_table_to_json::<Flights>(pool).await,
-            Self::SeatsTable => process_table_to_json::<Seats>(pool).await,
-            Self::TicketsTable => process_table_to_json::<Tickets>(pool).await,
-            Self::TicketFlightsTable => process_table_to_json::<TicketFlights>(pool).await,
+            Self::AircraftDataTable => process_table_to_json::<AircraftsData>(pool, query).await,
+            Self::AirportsDataTable => process_table_to_json::<AirportsData>(pool, query).await,
+            Self::BoardingPassesTable => process_table_to_json::<BoardingPasses>(pool, query).await,
+            Self::BookingsTable => process_table_to_json::<Bookings>(pool, query).await,
+            Self::FlightsTable => process_table_to_json::<Flights>(pool, query).await,
+            Self::SeatsTable => process_table_to_json::<Seats>(pool, query).await,
+            Self::TicketsTable => process_table_to_json::<Tickets>(pool, query).await,
+            Self::TicketFlightsTable => process_table_to_json::<TicketFlights>(pool, query).await,
         }
     }
 
     pub async fn run_query_table_to_df(
         &self,
         pool: &PgPool,
-        query: Option<&str>, 
+        query: &str, 
         ctx: &SessionContext,
     ) -> Result<DataFrame, AppError> {
         match *self {

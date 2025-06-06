@@ -1,11 +1,15 @@
-use crate::table_worker::{TableWorker, TableWorkerStatic};
-use crate::{AppError, MAX_ROWS, AIRPORTS_DATA_TABLE_NAME};
+use crate::table_worker::{TableWorkerDyn, TableWorkerStatic};
+use crate::{prepare_query, AppError, AIRPORTS_DATA_TABLE_NAME};
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use sqlx::postgres::PgTypeInfo;
+use sqlx::prelude::Type;
+use sqlx::{Decode, Postgres};
 use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::Json;
+use sqlx::postgres::types::PgPoint;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use datafusion::prelude::*;
@@ -17,7 +21,7 @@ pub struct AirportsData {
     pub airport_code: String,
     pub airport_name: Option<Json<AirportName>>,
     pub city: Option<Json<City>>,
-    pub coordinates: Option<Json<Coordinates>>, 
+    pub coordinates: Option<SerPgPoint>,
     pub timezone: Option<String>,
 }
 
@@ -33,10 +37,48 @@ pub struct City {
     pub ru: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Coordinates {
-    pub x: f64,
-    pub y: f64,
+#[derive(Debug, FromRow)]
+pub struct SerPgPoint(PgPoint);
+
+impl Serialize for SerPgPoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let point = &self.0;
+        let json = serde_json::json!({ "x": point.x, "y": point.y });
+        json.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SerPgPoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Point {
+            x: f64,
+            y: f64,
+        }
+
+        let point = Point::deserialize(deserializer)?;
+        Ok(SerPgPoint(PgPoint { x: point.x, y: point.y }))
+    }
+}
+
+// For PgTypeInfo
+impl Type<Postgres> for SerPgPoint {
+    fn type_info() -> PgTypeInfo {
+        PgPoint::type_info()
+    }
+}
+
+// For Decode
+impl<'r> Decode<'r, Postgres> for SerPgPoint {
+    fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        PgPoint::decode(value).map(SerPgPoint)
+    }
 }
 
 impl AsRef<str> for AirportsData {
@@ -114,141 +156,87 @@ impl AirportsData {
 }
 
 #[async_trait]
-impl TableWorker for AirportsData {
-    async fn query_table(&self, pool: &PgPool) -> Result<(), AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query_as::<_, Self>(&sql);
+impl TableWorkerDyn for AirportsData {
+    async fn query_table(&self, pool: &PgPool, query: &str) -> Result<(), AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query(&sql);
+    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {}, timezone: {}", 
+            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}", 
                 row.get::<String, _>("airport_code"), 
                 row.get::<Value, _>("airport_name"), 
                 row.get::<Value, _>("city"),
-                row.get::<Value, _>("coordinates"),
+                row.get::<PgPoint, _>("coordinates"),
                 row.get::<String, _>("timezone"),
             ))
             .collect();
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
-        let sql = match query {
-            None => format!("select 
-                            airport_code, 
-                            airport_name, 
-                            city, 
-                            json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                            timezone 
-                        from {} limit {}", self.as_ref(), MAX_ROWS),
-            Some(sql) => sql.to_string(),
-        };
-        let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
-        let df = Self::to_df(ctx, &records)?;
-        Ok(df)
-    }
-
-    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_json(&self, pool: &PgPool, query: &str) -> Result<String, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
         Ok(res)
+    }
+
+    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
+        Ok(df)
     }
 }
 
 #[async_trait]
 impl TableWorkerStatic for AirportsData {
-    async fn query_table(pool: &PgPool) -> Result<(), AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {AIRPORTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table(pool: &PgPool, query: &str) -> Result<(), AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
         Ok(())
     }
 
-    async fn query_table_to_string(pool: &PgPool) -> Result<Vec<String>, AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {AIRPORTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query(&sql);
+    async fn query_table_to_string(pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {}, timezone: {}", 
+            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}", 
                 row.get::<String, _>("airport_code"), 
                 row.get::<Value, _>("airport_name"), 
                 row.get::<Value, _>("city"),
-                row.get::<Value, _>("coordinates"),
+                row.get::<PgPoint, _>("coordinates"),
                 row.get::<String, _>("timezone"),
             ))
             .collect();
         Ok(rows)
     }
 
-    async fn query_table_to_json(pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select 
-                                        airport_code, 
-                                        airport_name, 
-                                        city, 
-                                        json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                                        timezone 
-                                    from {AIRPORTS_DATA_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_json(pool: &PgPool, query: &str) -> Result<String, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
-        let sql = match query {
-            None => format!("select 
-                            airport_code, 
-                            airport_name, 
-                            city, 
-                            json_build_object('x', coordinates[0], 'y', coordinates[1]) as coordinates, 
-                            timezone 
-                        from {AIRPORTS_DATA_TABLE_NAME} limit {MAX_ROWS}"),
-            Some(sql) => sql.to_string(),
-        };
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
         let df = Self::to_df(ctx, &records)?;
         Ok(df)

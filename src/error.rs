@@ -1,5 +1,7 @@
 use std::num::ParseIntError;
 
+use crate::utils::QueryParserError;
+
 use color_eyre::Report;
 use datafusion::error::DataFusionError;
 use datafusion::arrow::error::ArrowError;
@@ -14,6 +16,9 @@ use thiserror::Error;
 pub enum AppError {
     #[error("ParseIntError")]
     ParseIntError(#[from] ParseIntError),
+
+    #[error("QueryParserError")]
+    QueryParserError(#[from] QueryParserError),
 
     #[error("IoError")]
     IOError(#[from] IoError),

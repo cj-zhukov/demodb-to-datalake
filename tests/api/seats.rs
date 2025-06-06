@@ -1,14 +1,21 @@
-use crate::helpers::TestApp;
-use demodb_to_datalake::{Table, DATABASE_URL};
+use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 
+use color_eyre::Result;
 use datafusion::{assert_batches_eq, prelude::*};
 use secrecy::ExposeSecret;
 
 #[tokio::test]
-async fn test_flights() {
-    let app = TestApp::new(DATABASE_URL.expose_secret(), Table::SeatsTable).await.unwrap();
+async fn test_flights_dyn_df() -> Result<()> {
+    let db = PostgresDb::builder()
+      .with_url(DATABASE_URL.expose_secret())
+      .with_max_cons(MAX_DB_CONS)
+      .build()
+      .await?;
+    let table = Table::SeatsTable;
+    let worker = table.to_worker();
     let ctx = SessionContext::new();
-    let res = app.test_seats(&ctx).await.unwrap();
+    let query = format!("select * from {} limit 2000", table.as_ref());
+    let res = worker.query_table_to_df(db.as_ref(), &query, &ctx).await?;
 
     assert_eq!(res.schema().fields().len(), 3); // columns count
     assert_eq!(res.clone().count().await.unwrap(), 1339); // rows count
@@ -33,4 +40,5 @@ async fn test_flights() {
         ],
         &rows.collect().await.unwrap()
     );
+    Ok(())
 }

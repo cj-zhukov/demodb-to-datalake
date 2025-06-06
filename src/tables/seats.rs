@@ -1,5 +1,5 @@
-use crate::table_worker::TableWorkerStatic;
-use crate::{AppError, table_worker::TableWorker, MAX_ROWS, SEATS_TABLE_NAME};
+use crate::table_worker::{TableWorkerDyn, TableWorkerStatic};
+use crate::{prepare_query, AppError, SEATS_TABLE_NAME};
 
 use std::sync::Arc;
 
@@ -62,18 +62,18 @@ impl Seats {
 }
 
 #[async_trait]
-impl TableWorker for Seats {
-    async fn query_table(&self, pool: &PgPool) -> Result<(), AppError> {
-        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query_as::<_, Self>(&sql);
+impl TableWorkerDyn for Seats {
+    async fn query_table(&self, pool: &PgPool, query: &str) -> Result<(), AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
         Ok(())
     }
     
-    async fn query_table_to_string(&self, pool: &PgPool) -> Result<Vec<String>, AppError> {
-        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query(&sql);
+    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
@@ -86,39 +86,36 @@ impl TableWorker for Seats {
         Ok(rows)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
-        let sql = match query {
-            None => format!("select * from {} limit {}", self.as_ref(), MAX_ROWS),
-            Some(sql) => sql.to_string(),
-        };
-        let query = sqlx::query_as::<_, Self>(&sql);
-        let records = query.fetch_all(pool).await?;
-        let df = Self::to_df(ctx, &records)?;
-        Ok(df)
-    }
-
-    async fn query_table_to_json(&self, pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select * from {} limit {}", self.as_ref(), MAX_ROWS);
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_json(&self, pool: &PgPool, query: &str) -> Result<String, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
         Ok(res)
+    }
+
+    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
+        let records = query.fetch_all(pool).await?;
+        let df = Self::to_df(ctx, &records)?;
+        Ok(df)
     }
 }
 
 #[async_trait]
 impl TableWorkerStatic for Seats {
-    async fn query_table(pool: &PgPool) -> Result<(), AppError> {
-        let sql = format!("select * from {SEATS_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table(pool: &PgPool, query: &str) -> Result<(), AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         println!("{:?}", data);
         Ok(())
     }
 
-    async fn query_table_to_string(pool: &PgPool) -> Result<Vec<String>, AppError> {
-        let sql = format!("select * from {SEATS_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query(&sql);
+    async fn query_table_to_string(pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
@@ -131,20 +128,17 @@ impl TableWorkerStatic for Seats {
         Ok(rows)
     }
 
-    async fn query_table_to_json(pool: &PgPool) -> Result<String, AppError> {
-        let sql = format!("select * from {SEATS_TABLE_NAME} limit {MAX_ROWS}");
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_json(pool: &PgPool, query: &str) -> Result<String, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let data = query.fetch_all(pool).await?;
         let res = serde_json::to_string(&data)?;
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: Option<&str>, ctx: &SessionContext) -> Result<DataFrame, AppError> {
-        let sql = match query {
-            None => format!("select * from {SEATS_TABLE_NAME} limit {MAX_ROWS}"),
-            Some(sql) => sql.to_string(),
-        };
-        let query = sqlx::query_as::<_, Self>(&sql);
+    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+        let query = prepare_query(query)?;
+        let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
         let df = Self::to_df(ctx, &records)?;
         Ok(df)

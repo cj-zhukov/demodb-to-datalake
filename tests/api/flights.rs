@@ -1,14 +1,23 @@
-use crate::helpers::TestApp;
-use demodb_to_datalake::{Table, DATABASE_URL};
+use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 
+use color_eyre::Result;
 use datafusion::{assert_batches_eq, prelude::*};
 use secrecy::ExposeSecret;
 
 #[tokio::test]
-async fn test_flights() {
-    let app = TestApp::new(DATABASE_URL.expose_secret(), Table::FlightsTable).await.unwrap();
-    let ctx = SessionContext::new();
-    let res = app.test_flights(&ctx).await.unwrap();
+async fn test_flights_dyn_df() -> Result<()> {
+    let db = PostgresDb::builder()
+      .with_url(DATABASE_URL.expose_secret())
+      .with_max_cons(MAX_DB_CONS)
+      .build()
+      .await?;
+    let table = Table::FlightsTable;
+    let worker = table.to_worker();
+    let ctx = SessionContext::new();                         
+    let query = format!("select * from {} 
+        where actual_departure is not null 
+        and actual_arrival is not null", table.as_ref());
+    let res = worker.query_table_to_df(db.as_ref(), &query, &ctx).await?;
 
     assert_eq!(res.schema().fields().len(), 10); // columns count
     assert_eq!(res.clone().count().await.unwrap(), 10); // rows count
@@ -33,4 +42,5 @@ async fn test_flights() {
         ],
         &rows.collect().await.unwrap()
     );
+    Ok(())
 }
