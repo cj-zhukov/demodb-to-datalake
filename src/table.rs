@@ -5,6 +5,7 @@ use crate::table_worker::helpers::*;
 use crate::{table_worker::TableWorkerDyn, utils::*};
 use crate::{tables::*, AppError};
 
+#[derive(Debug, PartialEq)]
 pub enum Table {
     AircraftDataTable,
     AirportsDataTable,
@@ -134,5 +135,40 @@ impl Table {
                 process_table_to_df::<TicketFlights>(pool, query, ctx).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case("aircrafts_data", Some(Table::AircraftDataTable))]
+    #[case("airports_data", Some(Table::AirportsDataTable))]
+    #[case("boarding_passes", Some(Table::BoardingPassesTable))]
+    #[case("bookings", Some(Table::BookingsTable))]
+    #[case("flights", Some(Table::FlightsTable))]
+    #[case("seats", Some(Table::SeatsTable))]
+    #[case("tickets", Some(Table::TicketsTable))]
+    #[case("ticket_flights", Some(Table::TicketFlightsTable))]
+    #[case("foo", None)]
+    #[case("", None)]
+    fn test_create_table(#[case] input: &str, #[case] expected: Option<Table>) {
+        assert_eq!(expected, Table::new(input));
+    }
+
+    #[rstest]
+    #[case(Table::AircraftDataTable, "aircrafts_data")]
+    #[case(Table::AirportsDataTable, "airports_data")]
+    #[case(Table::BoardingPassesTable, "boarding_passes")]
+    #[case(Table::BookingsTable, "bookings")]
+    #[case(Table::FlightsTable, "flights")]
+    #[case(Table::SeatsTable, "seats")]
+    #[case(Table::TicketsTable, "tickets")]
+    #[case(Table::TicketFlightsTable, "ticket_flights")]
+    fn test_table_name(#[case] input: Table, #[case] expected: &str) {
+        assert_eq!(expected, input.as_ref());
     }
 }
