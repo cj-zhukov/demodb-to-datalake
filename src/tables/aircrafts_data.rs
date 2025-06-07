@@ -5,19 +5,19 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use sqlx::types::Json;
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sqlx::types::Json;
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 
 #[derive(Debug, Default, FromRow, Serialize)]
 pub struct AircraftsData {
     pub aircraft_code: String,
     pub model: Option<Json<Model>>,
-    pub range: Option<i32>
+    pub range: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,7 +49,10 @@ impl AircraftsData {
 
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
-        let aircraft_codes = records.iter().map(|r| r.aircraft_code.as_str()).collect::<Vec<_>>();
+        let aircraft_codes = records
+            .iter()
+            .map(|r| r.aircraft_code.as_str())
+            .collect::<Vec<_>>();
         let models = records
             .iter()
             .map(|r| {
@@ -60,11 +63,11 @@ impl AircraftsData {
             })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
         let ranges = records.iter().map(|r| r.range).collect::<Vec<_>>();
-        
+
         Ok(RecordBatch::try_new(
             schema,
             vec![
-                Arc::new(StringArray::from(aircraft_codes)), 
+                Arc::new(StringArray::from(aircraft_codes)),
                 Arc::new(StringArray::from(models)),
                 Arc::new(Int32Array::from(ranges)),
             ],
@@ -88,17 +91,24 @@ impl TableWorkerDyn for AircraftsData {
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {}, model: {}, range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<i32, _>("range"),
-            ))
+            .map(|row| {
+                format!(
+                    "aircraft_code: {}, model: {}, range: {}",
+                    row.get::<String, _>("aircraft_code"),
+                    row.get::<Value, _>("model"),
+                    row.get::<i32, _>("range"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -111,7 +121,12 @@ impl TableWorkerDyn for AircraftsData {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -136,11 +151,14 @@ impl TableWorkerStatic for AircraftsData {
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {}, model: {}, range: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<Value, _>("model"), 
-                row.get::<i32, _>("range"),
-            ))
+            .map(|row| {
+                format!(
+                    "aircraft_code: {}, model: {}, range: {}",
+                    row.get::<String, _>("aircraft_code"),
+                    row.get::<Value, _>("model"),
+                    row.get::<i32, _>("range"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -153,7 +171,11 @@ impl TableWorkerStatic for AircraftsData {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

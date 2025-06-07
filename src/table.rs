@@ -6,14 +6,14 @@ use crate::{table_worker::TableWorkerDyn, utils::*};
 use crate::{tables::*, AppError};
 
 pub enum Table {
-    AircraftDataTable, 
+    AircraftDataTable,
     AirportsDataTable,
-    BoardingPassesTable, 
-    BookingsTable, 
-    FlightsTable, 
-    SeatsTable, 
+    BoardingPassesTable,
+    BookingsTable,
+    FlightsTable,
+    SeatsTable,
     TicketsTable,
-    TicketFlightsTable, 
+    TicketFlightsTable,
 }
 
 impl AsRef<str> for Table {
@@ -42,7 +42,7 @@ impl Table {
             SEATS_TABLE_NAME => Some(Self::SeatsTable),
             TICKETS_TABLE_NAME => Some(Self::TicketsTable),
             TICKET_FLIGHTS_TABLE_NAME => Some(Self::TicketFlightsTable),
-            _ => None, 
+            _ => None,
         }
     }
 }
@@ -53,14 +53,14 @@ impl Table {
         match *self {
             Self::AircraftDataTable => Box::new(AircraftsData::new()),
             Self::AirportsDataTable => Box::new(AirportsData::new()),
-            Self::BoardingPassesTable => Box::new(BoardingPasses::new()), 
+            Self::BoardingPassesTable => Box::new(BoardingPasses::new()),
             Self::BookingsTable => Box::new(Bookings::new()),
             Self::FlightsTable => Box::new(Flights::new()),
             Self::SeatsTable => Box::new(Seats::new()),
             Self::TicketsTable => Box::new(Tickets::new()),
             Self::TicketFlightsTable => Box::new(TicketFlights::new()),
         }
-    } 
+    }
 }
 
 // Static dispatch
@@ -78,11 +78,17 @@ impl Table {
         }
     }
 
-    pub async fn run_query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    pub async fn run_query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         match *self {
             Self::AircraftDataTable => process_table_to_string::<AircraftsData>(pool, query).await,
             Self::AirportsDataTable => process_table_to_string::<AirportsData>(pool, query).await,
-            Self::BoardingPassesTable => process_table_to_string::<BoardingPasses>(pool, query).await,
+            Self::BoardingPassesTable => {
+                process_table_to_string::<BoardingPasses>(pool, query).await
+            }
             Self::BookingsTable => process_table_to_string::<Bookings>(pool, query).await,
             Self::FlightsTable => process_table_to_string::<Flights>(pool, query).await,
             Self::SeatsTable => process_table_to_string::<Seats>(pool, query).await,
@@ -91,7 +97,11 @@ impl Table {
         }
     }
 
-    pub async fn run_query_table_to_json(&self, pool: &PgPool, query: &str) -> Result<String, AppError> {
+    pub async fn run_query_table_to_json(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<String, AppError> {
         match *self {
             Self::AircraftDataTable => process_table_to_json::<AircraftsData>(pool, query).await,
             Self::AirportsDataTable => process_table_to_json::<AirportsData>(pool, query).await,
@@ -107,18 +117,22 @@ impl Table {
     pub async fn run_query_table_to_df(
         &self,
         pool: &PgPool,
-        query: &str, 
+        query: &str,
         ctx: &SessionContext,
     ) -> Result<DataFrame, AppError> {
         match *self {
             Self::AircraftDataTable => process_table_to_df::<AircraftsData>(pool, query, ctx).await,
             Self::AirportsDataTable => process_table_to_df::<AirportsData>(pool, query, ctx).await,
-            Self::BoardingPassesTable => process_table_to_df::<BoardingPasses>(pool, query, ctx).await,
+            Self::BoardingPassesTable => {
+                process_table_to_df::<BoardingPasses>(pool, query, ctx).await
+            }
             Self::BookingsTable => process_table_to_df::<Bookings>(pool, query, ctx).await,
             Self::FlightsTable => process_table_to_df::<Flights>(pool, query, ctx).await,
             Self::SeatsTable => process_table_to_df::<Seats>(pool, query, ctx).await,
             Self::TicketsTable => process_table_to_df::<Tickets>(pool, query, ctx).await,
-            Self::TicketFlightsTable => process_table_to_df::<TicketFlights>(pool, query, ctx).await,
+            Self::TicketFlightsTable => {
+                process_table_to_df::<TicketFlights>(pool, query, ctx).await
+            }
         }
     }
 }

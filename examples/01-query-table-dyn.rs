@@ -1,6 +1,6 @@
 use datafusion::prelude::SessionContext;
-use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 use demodb_to_datalake::tables_names::*;
+use demodb_to_datalake::{PostgresDb, Table, DATABASE_URL, MAX_DB_CONS};
 
 use color_eyre::{eyre::Context, Result};
 use secrecy::ExposeSecret;
@@ -14,36 +14,39 @@ async fn main() -> Result<()> {
         .await?;
 
     let tables = [
-        AIRCRAFTS_DATA_TABLE_NAME, 
-        AIRPORTS_DATA_TABLE_NAME, 
-        BOARDING_PASSES_TABLE_NAME, 
-        BOOKINGS_TABLE_NAME, 
-        FLIGHTS_TABLE_NAME, 
-        SEATS_TABLE_NAME, 
-        TICKETS_TABLE_NAME, 
-        TICKET_FLIGHTS_TABLE_NAME
+        AIRCRAFTS_DATA_TABLE_NAME,
+        AIRPORTS_DATA_TABLE_NAME,
+        BOARDING_PASSES_TABLE_NAME,
+        BOOKINGS_TABLE_NAME,
+        FLIGHTS_TABLE_NAME,
+        SEATS_TABLE_NAME,
+        TICKETS_TABLE_NAME,
+        TICKET_FLIGHTS_TABLE_NAME,
     ];
     for table in tables {
         let table = Table::new(table);
         if let Some(table) = table {
             let worker = table.to_worker();
-            let query = format!("select * from {}", table.as_ref());
+            let query = format!("select * from {} order by ticket_no", table.as_ref());
 
             println!("query_table table: {}", table.as_ref());
-            worker.query_table(db.as_ref(), &query)
+            worker
+                .query_table(db.as_ref(), &query)
                 .await
                 .wrap_err(format!("failed quering table: {}", table.as_ref()))?;
 
             println!();
             println!("query_table_to_string table: {}", table.as_ref());
-            let res = worker.query_table_to_string(db.as_ref(), &query)
+            let res = worker
+                .query_table_to_string(db.as_ref(), &query)
                 .await
                 .wrap_err(format!("failed quering table: {}", table.as_ref()))?;
             println!("{:?}", res);
 
             println!();
             println!("query_table_to_json table: {}", table.as_ref());
-            let res = worker.query_table_to_json(db.as_ref(), &query)
+            let res = worker
+                .query_table_to_json(db.as_ref(), &query)
                 .await
                 .wrap_err(format!("failed quering table: {}", table.as_ref()))?;
             println!("{:?}", res);
@@ -51,7 +54,8 @@ async fn main() -> Result<()> {
             println!();
             println!("query_table_to_df table: {}", table.as_ref());
             let ctx = SessionContext::new();
-            let res = worker.query_table_to_df(db.as_ref(), &query, &ctx)
+            let res = worker
+                .query_table_to_df(db.as_ref(), &query, &ctx)
                 .await
                 .wrap_err(format!("failed quering table: {}", table.as_ref()))?;
             res.show().await?;

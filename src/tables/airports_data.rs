@@ -4,17 +4,17 @@ use crate::{prepare_query, AppError, AIRPORTS_DATA_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use datafusion::arrow::array::{RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sqlx::postgres::types::PgPoint;
 use sqlx::postgres::PgTypeInfo;
 use sqlx::prelude::Type;
-use sqlx::{Decode, Postgres};
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
 use sqlx::types::Json;
-use sqlx::postgres::types::PgPoint;
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::arrow::array::{RecordBatch, StringArray};
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
+use sqlx::{Decode, Postgres};
 
 #[derive(Debug, Default, Deserialize, Serialize, FromRow)]
 pub struct AirportsData {
@@ -63,7 +63,10 @@ impl<'de> Deserialize<'de> for SerPgPoint {
         }
 
         let point = Point::deserialize(deserializer)?;
-        Ok(SerPgPoint(PgPoint { x: point.x, y: point.y }))
+        Ok(SerPgPoint(PgPoint {
+            x: point.x,
+            y: point.y,
+        }))
     }
 }
 
@@ -106,40 +109,46 @@ impl AirportsData {
 
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
-        let airport_codes = records.iter().map(|r| r.airport_code.as_str()).collect::<Vec<_>>();
+        let airport_codes = records
+            .iter()
+            .map(|r| r.airport_code.as_str())
+            .collect::<Vec<_>>();
         let airport_names = records
             .iter()
-            .map(|r| 
+            .map(|r| {
                 r.airport_name
-                .as_ref()
-                .map(|val| serde_json::to_string(val))
-                .transpose()
-            )
+                    .as_ref()
+                    .map(|val| serde_json::to_string(val))
+                    .transpose()
+            })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
         let cities = records
             .iter()
-            .map(|r| 
+            .map(|r| {
                 r.city
-                .as_ref()
-                .map(|val| serde_json::to_string(val))
-                .transpose()
-            )
+                    .as_ref()
+                    .map(|val| serde_json::to_string(val))
+                    .transpose()
+            })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
         let coordinates_all = records
             .iter()
-            .map(|r| 
+            .map(|r| {
                 r.coordinates
-                .as_ref()
-                .map(|val| serde_json::to_string(val))
-                .transpose()
-            )
+                    .as_ref()
+                    .map(|val| serde_json::to_string(val))
+                    .transpose()
+            })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
-        let timezones = records.iter().map(|r| r.timezone.as_deref()).collect::<Vec<_>>();
-        
+        let timezones = records
+            .iter()
+            .map(|r| r.timezone.as_deref())
+            .collect::<Vec<_>>();
+
         Ok(RecordBatch::try_new(
             schema,
             vec![
-                Arc::new(StringArray::from(airport_codes)), 
+                Arc::new(StringArray::from(airport_codes)),
                 Arc::new(StringArray::from(airport_names)),
                 Arc::new(StringArray::from(cities)),
                 Arc::new(StringArray::from(coordinates_all)),
@@ -165,19 +174,26 @@ impl TableWorkerDyn for AirportsData {
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}", 
-                row.get::<String, _>("airport_code"), 
-                row.get::<Value, _>("airport_name"), 
-                row.get::<Value, _>("city"),
-                row.get::<PgPoint, _>("coordinates"),
-                row.get::<String, _>("timezone"),
-            ))
+            .map(|row| {
+                format!(
+                    "airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}",
+                    row.get::<String, _>("airport_code"),
+                    row.get::<Value, _>("airport_name"),
+                    row.get::<Value, _>("city"),
+                    row.get::<PgPoint, _>("coordinates"),
+                    row.get::<String, _>("timezone"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -190,7 +206,12 @@ impl TableWorkerDyn for AirportsData {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -215,13 +236,16 @@ impl TableWorkerStatic for AirportsData {
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}", 
-                row.get::<String, _>("airport_code"), 
-                row.get::<Value, _>("airport_name"), 
-                row.get::<Value, _>("city"),
-                row.get::<PgPoint, _>("coordinates"),
-                row.get::<String, _>("timezone"),
-            ))
+            .map(|row| {
+                format!(
+                    "airport_code: {}, airport_name: {}, city: {}, coordinates: {:?}, timezone: {}",
+                    row.get::<String, _>("airport_code"),
+                    row.get::<Value, _>("airport_name"),
+                    row.get::<Value, _>("city"),
+                    row.get::<PgPoint, _>("coordinates"),
+                    row.get::<String, _>("timezone"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -234,7 +258,11 @@ impl TableWorkerStatic for AirportsData {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

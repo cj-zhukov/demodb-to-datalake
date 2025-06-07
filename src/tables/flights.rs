@@ -4,12 +4,12 @@ use crate::{prepare_query, AppError, FLIGHTS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde::Serialize;
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use sqlx::types::chrono::{DateTime, Utc};
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::Serialize;
+use sqlx::types::chrono::{DateTime, Utc};
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 
 #[derive(Debug, Default, FromRow)]
 pub struct Flights {
@@ -28,7 +28,7 @@ pub struct Flights {
 impl Serialize for Flights {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer 
+        S: serde::Serializer,
     {
         let scheduled_departure = self.scheduled_departure.map(|val| val.to_rfc3339());
         let scheduled_arrival = self.scheduled_arrival.map(|val| val.to_rfc3339());
@@ -74,48 +74,47 @@ impl Flights {
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
         let flight_ids = records.iter().map(|r| r.flight_id).collect::<Vec<_>>();
-        let flight_nos = records.iter().map(|r| r.flight_no.as_deref()).collect::<Vec<_>>();
+        let flight_nos = records
+            .iter()
+            .map(|r| r.flight_no.as_deref())
+            .collect::<Vec<_>>();
         let scheduled_departures = records
             .iter()
-            .map(|r| 
-                r.scheduled_departure
-                .as_ref()
-                .map(|val| val.to_rfc3339())
-            )
+            .map(|r| r.scheduled_departure.as_ref().map(|val| val.to_rfc3339()))
             .collect::<Vec<_>>();
         let scheduled_arrivals = records
             .iter()
-            .map(|r| 
-                r.scheduled_arrival
-                .as_ref()
-                .map(|val| val.to_rfc3339())
-            )
+            .map(|r| r.scheduled_arrival.as_ref().map(|val| val.to_rfc3339()))
             .collect::<Vec<_>>();
-        let departure_airports = records.iter().map(|r| r.departure_airport.as_deref()).collect::<Vec<_>>();
-        let arrival_airports = records.iter().map(|r| r.arrival_airport.as_deref()).collect::<Vec<_>>();
-        let statuses = records.iter().map(|r| r.status.as_deref()).collect::<Vec<_>>();
-        let aircraft_codes = records.iter().map(|r| r.aircraft_code.as_deref()).collect::<Vec<_>>();
+        let departure_airports = records
+            .iter()
+            .map(|r| r.departure_airport.as_deref())
+            .collect::<Vec<_>>();
+        let arrival_airports = records
+            .iter()
+            .map(|r| r.arrival_airport.as_deref())
+            .collect::<Vec<_>>();
+        let statuses = records
+            .iter()
+            .map(|r| r.status.as_deref())
+            .collect::<Vec<_>>();
+        let aircraft_codes = records
+            .iter()
+            .map(|r| r.aircraft_code.as_deref())
+            .collect::<Vec<_>>();
         let actual_departures = records
             .iter()
-            .map(|r| 
-                r.actual_departure
-                .as_ref()
-                .map(|val| val.to_rfc3339())
-            )
+            .map(|r| r.actual_departure.as_ref().map(|val| val.to_rfc3339()))
             .collect::<Vec<_>>();
         let actual_arrivals = records
             .iter()
-            .map(|r| 
-                r.actual_arrival
-                .as_ref()
-                .map(|val| val.to_rfc3339())
-            )
+            .map(|r| r.actual_arrival.as_ref().map(|val| val.to_rfc3339()))
             .collect::<Vec<_>>();
 
         Ok(RecordBatch::try_new(
             schema,
             vec![
-                Arc::new(Int32Array::from(flight_ids)), 
+                Arc::new(Int32Array::from(flight_ids)),
                 Arc::new(StringArray::from(flight_nos)),
                 Arc::new(StringArray::from(scheduled_departures)),
                 Arc::new(StringArray::from(scheduled_arrivals)),
@@ -146,7 +145,11 @@ impl TableWorkerDyn for Flights {
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
@@ -177,7 +180,12 @@ impl TableWorkerDyn for Flights {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -227,7 +235,11 @@ impl TableWorkerStatic for Flights {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

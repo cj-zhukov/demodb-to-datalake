@@ -3,14 +3,13 @@ use std::num::ParseIntError;
 use crate::utils::QueryParserError;
 
 use color_eyre::Report;
-use datafusion::error::DataFusionError;
 use datafusion::arrow::error::ArrowError;
+use datafusion::error::DataFusionError;
 use parquet::errors::ParquetError;
-use std::io::Error as IoError;
-use sqlx::Error as SqlxError;
 use serde_json::Error as SerdeError;
+use sqlx::Error as SqlxError;
+use std::io::Error as IoError;
 use thiserror::Error;
-
 
 #[derive(Error, Debug)]
 pub enum AppError {

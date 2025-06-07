@@ -23,8 +23,8 @@ pub mod env {
 
 pub static DATABASE_URL: LazyLock<Secret<String>> = LazyLock::new(|| {
     dotenv().ok();
-    let secret = std_env::var(env::DATABASE_URL_ENV_VAR)
-        .expect("DATABASE_URL_ENV_VAR must be set.");
+    let secret =
+        std_env::var(env::DATABASE_URL_ENV_VAR).expect("DATABASE_URL_ENV_VAR must be set.");
     if secret.is_empty() {
         panic!("DATABASE_URL_ENV_VAR must not be empty.");
     }

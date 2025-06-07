@@ -4,17 +4,17 @@ use crate::{prepare_query, AppError, TICKETS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use sqlx::types::Json;
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sqlx::types::Json;
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 
 #[derive(Debug, Default, FromRow, Serialize)]
 pub struct Tickets {
-    pub ticket_no: String, 
+    pub ticket_no: String,
     pub book_ref: Option<String>,
     pub passenger_id: Option<String>,
     pub passenger_name: Option<String>,
@@ -29,7 +29,7 @@ pub struct ContactData {
 
 impl AsRef<str> for Tickets {
     fn as_ref(&self) -> &str {
-        TICKETS_TABLE_NAME 
+        TICKETS_TABLE_NAME
     }
 }
 
@@ -46,24 +46,36 @@ impl Tickets {
             Field::new("book_ref", DataType::Utf8, true),
             Field::new("passenger_id", DataType::Utf8, true),
             Field::new("passenger_name", DataType::Utf8, true),
-            Field::new("contact_data", DataType::Utf8, true), 
+            Field::new("contact_data", DataType::Utf8, true),
         ])
     }
 
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
-        let ticket_nos = records.iter().map(|r| r.ticket_no.as_str()).collect::<Vec<_>>();
-        let book_refs = records.iter().map(|r| r.book_ref.as_deref()).collect::<Vec<_>>();
-        let passenger_ids = records.iter().map(|r| r.passenger_id.as_deref()).collect::<Vec<_>>();
-        let passenger_names = records.iter().map(|r| r.passenger_name.as_deref()).collect::<Vec<_>>();
+        let ticket_nos = records
+            .iter()
+            .map(|r| r.ticket_no.as_str())
+            .collect::<Vec<_>>();
+        let book_refs = records
+            .iter()
+            .map(|r| r.book_ref.as_deref())
+            .collect::<Vec<_>>();
+        let passenger_ids = records
+            .iter()
+            .map(|r| r.passenger_id.as_deref())
+            .collect::<Vec<_>>();
+        let passenger_names = records
+            .iter()
+            .map(|r| r.passenger_name.as_deref())
+            .collect::<Vec<_>>();
         let contact_data_all = records
             .iter()
-            .map(|r| 
+            .map(|r| {
                 r.contact_data
-                .as_ref()
-                .map(|val| serde_json::to_string(val))
-                .transpose()
-            )
+                    .as_ref()
+                    .map(|val| serde_json::to_string(val))
+                    .transpose()
+            })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
 
         Ok(RecordBatch::try_new(
@@ -71,7 +83,7 @@ impl Tickets {
             vec![
                 Arc::new(StringArray::from(ticket_nos)),
                 Arc::new(StringArray::from(book_refs)),
-                Arc::new(StringArray::from(passenger_ids)), 
+                Arc::new(StringArray::from(passenger_ids)),
                 Arc::new(StringArray::from(passenger_names)),
                 Arc::new(StringArray::from(contact_data_all)),
             ],
@@ -95,7 +107,11 @@ impl TableWorkerDyn for Tickets {
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
@@ -120,7 +136,12 @@ impl TableWorkerDyn for Tickets {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -164,7 +185,11 @@ impl TableWorkerStatic for Tickets {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

@@ -4,12 +4,12 @@ use crate::{prepare_query, AppError, TICKET_FLIGHTS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde::Serialize;
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use sqlx::types::Decimal;
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{Int32Array, RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::Serialize;
+use sqlx::types::Decimal;
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 
 #[derive(Debug, Default, FromRow)]
 pub struct TicketFlights {
@@ -22,7 +22,7 @@ pub struct TicketFlights {
 impl Serialize for TicketFlights {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer 
+        S: serde::Serializer,
     {
         let amount = self.amount.map(|val| val.to_string());
 
@@ -49,29 +49,31 @@ impl TicketFlights {
             Field::new("ticket_no", DataType::Utf8, false),
             Field::new("flight_id", DataType::Int32, true),
             Field::new("fare_conditions", DataType::Utf8, true),
-            Field::new("amount", DataType::Utf8, true), 
+            Field::new("amount", DataType::Utf8, true),
         ])
     }
 
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
-        let ticket_nos = records.iter().map(|r| r.ticket_no.as_str()).collect::<Vec<_>>();
+        let ticket_nos = records
+            .iter()
+            .map(|r| r.ticket_no.as_str())
+            .collect::<Vec<_>>();
         let flight_ids = records.iter().map(|r| r.flight_id).collect::<Vec<_>>();
-        let fare_conditions_all = records.iter().map(|r| r.fare_conditions.as_deref()).collect::<Vec<_>>();
+        let fare_conditions_all = records
+            .iter()
+            .map(|r| r.fare_conditions.as_deref())
+            .collect::<Vec<_>>();
         let amounts = records
             .iter()
-            .map(|r|
-                r.amount
-                .as_ref()
-                .map(|val| val.to_string())
-            )
+            .map(|r| r.amount.as_ref().map(|val| val.to_string()))
             .collect::<Vec<_>>();
 
         Ok(RecordBatch::try_new(
             schema,
             vec![
                 Arc::new(StringArray::from(ticket_nos)),
-                Arc::new(Int32Array::from(flight_ids)), 
+                Arc::new(Int32Array::from(flight_ids)),
                 Arc::new(StringArray::from(fare_conditions_all)),
                 Arc::new(StringArray::from(amounts)),
             ],
@@ -85,7 +87,6 @@ impl TicketFlights {
     }
 }
 
-
 #[async_trait]
 impl TableWorkerDyn for TicketFlights {
     async fn query_table(&self, pool: &PgPool, query: &str) -> Result<(), AppError> {
@@ -96,18 +97,25 @@ impl TableWorkerDyn for TicketFlights {
         Ok(())
     }
 
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}", 
-                row.get::<String, _>("ticket_no"), 
-                row.get::<i32, _>("flight_id"), 
-                row.get::<String, _>("fare_conditions"),
-                row.get::<Decimal, _>("amount"))
-            )
+            .map(|row| {
+                format!(
+                    "ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}",
+                    row.get::<String, _>("ticket_no"),
+                    row.get::<i32, _>("flight_id"),
+                    row.get::<String, _>("fare_conditions"),
+                    row.get::<Decimal, _>("amount")
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -120,7 +128,12 @@ impl TableWorkerDyn for TicketFlights {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -145,12 +158,15 @@ impl TableWorkerStatic for TicketFlights {
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}", 
-                row.get::<String, _>("ticket_no"), 
-                row.get::<i32, _>("flight_id"), 
-                row.get::<String, _>("fare_conditions"),
-                row.get::<Decimal, _>("amount"))
-            )
+            .map(|row| {
+                format!(
+                    "ticket_no: {}, flight_id: {}, fare_conditions: {}, amount: {}",
+                    row.get::<String, _>("ticket_no"),
+                    row.get::<i32, _>("flight_id"),
+                    row.get::<String, _>("fare_conditions"),
+                    row.get::<Decimal, _>("amount")
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -163,7 +179,11 @@ impl TableWorkerStatic for TicketFlights {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

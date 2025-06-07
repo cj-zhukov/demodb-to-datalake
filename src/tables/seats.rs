@@ -4,11 +4,11 @@ use crate::{prepare_query, AppError, SEATS_TABLE_NAME};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde::Serialize;
-use sqlx::{postgres::PgRow, FromRow, Row, PgPool};
-use datafusion::prelude::*;
-use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
+use datafusion::prelude::*;
+use serde::Serialize;
+use sqlx::{postgres::PgRow, FromRow, PgPool, Row};
 
 #[derive(Debug, Default, FromRow, Serialize)]
 pub struct Seats {
@@ -40,14 +40,23 @@ impl Seats {
 
     fn to_record_batch(records: &[Self]) -> Result<RecordBatch, AppError> {
         let schema = Arc::new(Self::schema());
-        let aircraft_codes = records.iter().map(|r| r.aircraft_code.as_str()).collect::<Vec<_>>();
-        let seat_nos = records.iter().map(|r| r.seat_no.as_deref()).collect::<Vec<_>>();
-        let fare_conditions_all = records.iter().map(|r| r.fare_conditions.as_deref()).collect::<Vec<_>>();
+        let aircraft_codes = records
+            .iter()
+            .map(|r| r.aircraft_code.as_str())
+            .collect::<Vec<_>>();
+        let seat_nos = records
+            .iter()
+            .map(|r| r.seat_no.as_deref())
+            .collect::<Vec<_>>();
+        let fare_conditions_all = records
+            .iter()
+            .map(|r| r.fare_conditions.as_deref())
+            .collect::<Vec<_>>();
 
         Ok(RecordBatch::try_new(
             schema,
             vec![
-                Arc::new(StringArray::from(aircraft_codes)), 
+                Arc::new(StringArray::from(aircraft_codes)),
                 Arc::new(StringArray::from(seat_nos)),
                 Arc::new(StringArray::from(fare_conditions_all)),
             ],
@@ -70,18 +79,25 @@ impl TableWorkerDyn for Seats {
         println!("{:?}", data);
         Ok(())
     }
-    
-    async fn query_table_to_string(&self, pool: &PgPool, query: &str) -> Result<Vec<String>, AppError> {
+
+    async fn query_table_to_string(
+        &self,
+        pool: &PgPool,
+        query: &str,
+    ) -> Result<Vec<String>, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query(&query);
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {}, seat_no: {}, fare_conditions: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<String, _>("seat_no"), 
-                row.get::<String, _>("fare_conditions"),
-            ))
+            .map(|row| {
+                format!(
+                    "aircraft_code: {}, seat_no: {}, fare_conditions: {}",
+                    row.get::<String, _>("aircraft_code"),
+                    row.get::<String, _>("seat_no"),
+                    row.get::<String, _>("fare_conditions"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -94,7 +110,12 @@ impl TableWorkerDyn for Seats {
         Ok(res)
     }
 
-    async fn query_table_to_df(&self, pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        &self,
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;
@@ -119,11 +140,14 @@ impl TableWorkerStatic for Seats {
         let data: Vec<PgRow> = query.fetch_all(pool).await?;
         let rows: Vec<String> = data
             .iter()
-            .map(|row| format!("aircraft_code: {}, seat_no: {}, fare_conditions: {}", 
-                row.get::<String, _>("aircraft_code"), 
-                row.get::<String, _>("seat_no"), 
-                row.get::<String, _>("fare_conditions"),
-            ))
+            .map(|row| {
+                format!(
+                    "aircraft_code: {}, seat_no: {}, fare_conditions: {}",
+                    row.get::<String, _>("aircraft_code"),
+                    row.get::<String, _>("seat_no"),
+                    row.get::<String, _>("fare_conditions"),
+                )
+            })
             .collect();
         Ok(rows)
     }
@@ -136,7 +160,11 @@ impl TableWorkerStatic for Seats {
         Ok(res)
     }
 
-    async fn query_table_to_df(pool: &PgPool, query: &str, ctx: &SessionContext) -> Result<DataFrame, AppError> {
+    async fn query_table_to_df(
+        pool: &PgPool,
+        query: &str,
+        ctx: &SessionContext,
+    ) -> Result<DataFrame, AppError> {
         let query = prepare_query(query)?;
         let query = sqlx::query_as::<_, Self>(&query);
         let records = query.fetch_all(pool).await?;

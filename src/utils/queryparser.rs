@@ -1,10 +1,10 @@
-use super::constants::{MAX_ROWS, tables_names::*};
+use super::constants::{tables_names::*, MAX_ROWS};
 
-use thiserror::Error;
-use sqlparser::dialect::GenericDialect;
 use sqlparser::ast::{Expr, Ident, LimitClause, SetExpr, Statement, TableFactor, Value};
+use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
 use sqlparser::parser::ParserError;
+use thiserror::Error;
 
 pub const ALL_TABLE_NAMES: &[&str] = &[
     AIRCRAFTS_DATA_TABLE_NAME,
@@ -27,7 +27,7 @@ pub enum QueryParserError {
 
     #[error("Select query type not found")]
     SelectQueryNotFound,
-    
+
     #[error("Unsupported query type")]
     UnsupportedQueryType,
 }
@@ -61,10 +61,12 @@ pub fn prepare_query(query: &str) -> Result<String, QueryParserError> {
         if let SetExpr::Select(_select) = &mut *query.body {
             // query contains limit
             if query.limit_clause.is_none() {
-                query.limit_clause = Some(LimitClause::LimitOffset { 
-                    limit: Some(Expr::Value(Value::Number(MAX_ROWS.to_string(), false).into())), 
-                    offset: None, 
-                    limit_by: vec![]
+                query.limit_clause = Some(LimitClause::LimitOffset {
+                    limit: Some(Expr::Value(
+                        Value::Number(MAX_ROWS.to_string(), false).into(),
+                    )),
+                    offset: None,
+                    limit_by: vec![],
                 })
             };
 
@@ -82,9 +84,7 @@ pub fn contains_column(expr: &Expr, col_name: &str) -> bool {
         Expr::BinaryOp { left, right, .. } => {
             contains_column(left, col_name) || contains_column(right, col_name)
         }
-        Expr::Identifier(Ident { value, .. }) => {
-            value.eq_ignore_ascii_case(col_name)
-        }
+        Expr::Identifier(Ident { value, .. }) => value.eq_ignore_ascii_case(col_name),
         Expr::Nested(inner) => contains_column(inner, col_name),
         _ => false,
     }
@@ -106,9 +106,18 @@ mod tests {
     #[case("select * from tickets", Ok("SELECT * FROM tickets LIMIT 10".to_string()))]
     #[case("select * from ticket_flights", Ok("SELECT * FROM ticket_flights LIMIT 10".to_string()))]
     #[case("select * from foo", Err(QueryParserError::InvalidTableName))]
-    #[case("delete from aircrafts_data", Err(QueryParserError::UnsupportedQueryType))]
-    #[case("update aircrafts_data set data_type = 'foo' where data_type = 'bar'", Err(QueryParserError::UnsupportedQueryType))]
-    #[case("insert into aircrafts_data(file_name) values('foo')", Err(QueryParserError::UnsupportedQueryType))]
+    #[case(
+        "delete from aircrafts_data",
+        Err(QueryParserError::UnsupportedQueryType)
+    )]
+    #[case(
+        "update aircrafts_data set data_type = 'foo' where data_type = 'bar'",
+        Err(QueryParserError::UnsupportedQueryType)
+    )]
+    #[case(
+        "insert into aircrafts_data(file_name) values('foo')",
+        Err(QueryParserError::UnsupportedQueryType)
+    )]
     #[case("foo bar baz", Err(QueryParserError::SqlParseError(ParserError::ParserError("Expected: an SQL statement, found: foo at Line: 1, Column: 1".to_string()))))]
     fn prepare_query_test(#[case] input: &str, #[case] expected: Result<String, QueryParserError>) {
         assert_eq!(expected, prepare_query(input));

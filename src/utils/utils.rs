@@ -3,7 +3,10 @@ use std::io::Cursor;
 use datafusion::{arrow::datatypes::Schema, parquet::arrow::AsyncArrowWriter, prelude::*};
 use futures_util::TryStreamExt;
 use parquet::arrow::ParquetRecordBatchStreamBuilder;
-use tokio::{fs::File, io::{AsyncReadExt, AsyncWriteExt}};
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
 use tokio_stream::StreamExt;
 
 use crate::AppError;
