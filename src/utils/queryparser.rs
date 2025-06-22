@@ -22,7 +22,7 @@ pub enum QueryParserError {
     #[error("SQL parse error")]
     SqlParseError(#[from] ParserError),
 
-    #[error("Invalid query: must contain 'object_store'")]
+    #[error("Invalid query: unsupported table")]
     InvalidTableName,
 
     #[error("Select query type not found")]
